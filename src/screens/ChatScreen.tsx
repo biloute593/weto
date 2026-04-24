@@ -8,37 +8,55 @@ import {
   SafeAreaView,
   Platform,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { Colors, Spacing, Radius, Typography } from '../theme/colors';
-import { useWetoStore, ChatMessage } from '../store/useWetoStore';
+import { useWetoStore, ChatThread } from '../store/useWetoStore';
 
 export function ChatScreen() {
   const { chats } = useWetoStore();
+  const navigation = useNavigation<any>();
 
-  const renderItem = ({ item }: { item: ChatMessage }) => (
-    <TouchableOpacity style={styles.chatRow}>
-      <View style={styles.avatarContainer}>
-        <View style={styles.avatarCircle}>
-          <Text style={styles.avatarEmoji}>{item.contactAvatar}</Text>
+  // Convert the chats object map into an array and sort by latest message
+  const chatList = Object.values(chats).sort((a, b) => {
+    const aLast = a.messages[a.messages.length - 1]?.timestamp || 0;
+    const bLast = b.messages[b.messages.length - 1]?.timestamp || 0;
+    return bLast - aLast;
+  });
+
+  const renderItem = ({ item }: { item: ChatThread }) => {
+    const lastMessage = item.messages[item.messages.length - 1];
+    
+    return (
+      <TouchableOpacity 
+        style={styles.chatRow} 
+        onPress={() => navigation.navigate('ChatDetail', { contactId: item.contactId })}
+      >
+        <View style={styles.avatarContainer}>
+          <View style={styles.avatarCircle}>
+            <Text style={styles.avatarEmoji}>{item.contactAvatar}</Text>
+          </View>
+          {item.unread && <View style={styles.unreadDot} />}
         </View>
-        {item.unread && <View style={styles.unreadDot} />}
-      </View>
 
-      <View style={styles.chatInfo}>
-        <View style={styles.chatTopRow}>
-          <Text style={[styles.contactName, item.unread && styles.contactNameBold]}>
-            {item.contactName}
+        <View style={styles.chatInfo}>
+          <View style={styles.chatTopRow}>
+            <Text style={[styles.contactName, item.unread && styles.contactNameBold]}>
+              {item.contactName}
+            </Text>
+            <Text style={styles.timestamp}>
+              {lastMessage ? new Date(lastMessage.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
+            </Text>
+          </View>
+          <Text
+            style={[styles.lastMessage, item.unread && styles.lastMessageBold]}
+            numberOfLines={1}
+          >
+            {lastMessage ? lastMessage.text : ''}
           </Text>
-          <Text style={styles.timestamp}>{item.timestamp}</Text>
         </View>
-        <Text
-          style={[styles.lastMessage, item.unread && styles.lastMessageBold]}
-          numberOfLines={1}
-        >
-          {item.lastMessage}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -56,8 +74,8 @@ export function ChatScreen() {
       </View>
 
       <FlatList
-        data={chats}
-        keyExtractor={(item) => item.id}
+        data={chatList}
+        keyExtractor={(item) => item.contactId}
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}

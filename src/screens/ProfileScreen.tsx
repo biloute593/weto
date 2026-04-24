@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,14 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Platform,
+  TextInput,
+  Modal,
 } from 'react-native';
 import { Colors, Spacing, Radius, Typography } from '../theme/colors';
 import { useWetoStore, UserTraits } from '../store/useWetoStore';
 
 const TRAIT_LABELS: Record<keyof UserTraits, string> = {
-  sociability: 'Sociabilité',
+  sociability: 'Approche sociale',
   emotionalReactivity: 'Réactivité émotionnelle',
   riskTolerance: 'Tolérance au risque',
   humorStyle: "Style d'humour",
@@ -30,7 +32,10 @@ const TRAIT_COLORS: Record<keyof UserTraits, string> = {
 };
 
 export function ProfileScreen() {
-  const { userTraits, profileCompletion, answers, matches } = useWetoStore();
+  const { userTraits, profileCompletion, answers, matches, userName, userAvatar, updateProfile, resetProgress } = useWetoStore();
+  const [isEditModalVisible, setEditModalVisible] = useState(false);
+  const [editName, setEditName] = useState(userName);
+  const [editAvatar, setEditAvatar] = useState(userAvatar);
 
   const traitKeys = Object.keys(userTraits) as (keyof UserTraits)[];
 
@@ -38,12 +43,20 @@ export function ProfileScreen() {
     userTraits[a] > userTraits[b] ? a : b
   );
 
+  const handleSaveProfile = () => {
+    updateProfile(editName || 'Moi', editAvatar || '👤');
+    setEditModalVisible(false);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Mon profil</Text>
-        <TouchableOpacity style={styles.settingsButton}>
-          <Text style={styles.settingsIcon}>⚙️</Text>
+        <View style={styles.headerTitleRow}>
+          <Text style={styles.headerAvatar}>{userAvatar}</Text>
+          <Text style={styles.title}>{userName}</Text>
+        </View>
+        <TouchableOpacity style={styles.settingsButton} onPress={() => setEditModalVisible(true)}>
+          <Text style={styles.settingsIcon}>✏️</Text>
         </TouchableOpacity>
       </View>
 
@@ -88,13 +101,13 @@ export function ProfileScreen() {
             <Text style={[styles.statNumber, { fontSize: 20 }]}>
               {TRAIT_LABELS[dominantTrait]?.split(' ')[0] ?? '—'}
             </Text>
-            <Text style={styles.statLabel}>Trait dominant</Text>
+            <Text style={styles.statLabel}>Dominant</Text>
           </View>
         </View>
 
         {/* Traits */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Mes traits</Text>
+          <Text style={styles.sectionTitle}>Mes traits (calculés)</Text>
           <View style={styles.traitsContainer}>
             {traitKeys.map((key) => (
               <View key={key} style={styles.traitRow}>
@@ -133,7 +146,47 @@ export function ProfileScreen() {
             <Text style={styles.dominantValue}>{Math.round(userTraits[dominantTrait])} / 100</Text>
           </View>
         </View>
+
+        <TouchableOpacity style={styles.resetButton} onPress={resetProgress}>
+          <Text style={styles.resetButtonText}>Réinitialiser (Démo)</Text>
+        </TouchableOpacity>
+
       </ScrollView>
+
+      {/* Edit Profile Modal */}
+      <Modal visible={isEditModalVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Modifier le profil</Text>
+            
+            <Text style={styles.inputLabel}>Avatar (Emoji)</Text>
+            <TextInput 
+              style={styles.textInput}
+              value={editAvatar}
+              onChangeText={setEditAvatar}
+              maxLength={2}
+            />
+
+            <Text style={styles.inputLabel}>Prénom</Text>
+            <TextInput 
+              style={styles.textInput}
+              value={editName}
+              onChangeText={setEditName}
+              maxLength={20}
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalBtnSecondary} onPress={() => setEditModalVisible(false)}>
+                <Text style={styles.modalBtnTextSecondary}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalBtnPrimary} onPress={handleSaveProfile}>
+                <Text style={styles.modalBtnTextPrimary}>Sauvegarder</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -149,6 +202,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  headerAvatar: {
+    fontSize: 24,
   },
   title: {
     ...Typography.title,
@@ -322,4 +383,71 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     color: Colors.textSecondary,
   },
+  resetButton: {
+    paddingVertical: Spacing.md,
+    alignItems: 'center',
+    marginTop: Spacing.md,
+  },
+  resetButtonText: {
+    ...Typography.bodyBold,
+    color: '#FF3B30',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.lg,
+  },
+  modalContent: {
+    backgroundColor: Colors.card,
+    borderRadius: Radius.lg,
+    padding: Spacing.xl,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    ...Typography.h1,
+    color: Colors.text,
+    marginBottom: Spacing.lg,
+  },
+  inputLabel: {
+    ...Typography.captionBold,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.xs,
+  },
+  textInput: {
+    backgroundColor: Colors.background,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    ...Typography.body,
+    color: Colors.text,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: Spacing.md,
+    marginTop: Spacing.md,
+  },
+  modalBtnSecondary: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.pill,
+  },
+  modalBtnTextSecondary: {
+    ...Typography.bodyBold,
+    color: Colors.textSecondary,
+  },
+  modalBtnPrimary: {
+    backgroundColor: Colors.accent,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radius.pill,
+  },
+  modalBtnTextPrimary: {
+    ...Typography.bodyBold,
+    color: Colors.white,
+  },
 });
+
