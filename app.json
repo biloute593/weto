@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "Weto",
+    "slug": "weto",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F4F2EE"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.weto.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F4F2EE"
+      },
+      "package": "com.weto.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "output": "single",
+      "name": "Weto",
+      "shortName": "Weto",
+      "description": "L'app de rencontre qui te comprend vraiment."
+    },
+    "plugins": []
+  }
+}
