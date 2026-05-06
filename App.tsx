@@ -3,7 +3,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, Text, Platform, StyleSheet } from 'react-native';
+import { View, Text, Platform, StyleSheet, useWindowDimensions } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { FeedScreen } from './src/screens/FeedScreen';
@@ -121,6 +121,7 @@ function MainTabs() {
 
 export default function App() {
   const hasCompletedOnboarding = useWetoStore((state) => state.hasCompletedOnboarding);
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
   const appContent = (
     <NavigationContainer>
@@ -138,10 +139,11 @@ export default function App() {
   );
 
   if (Platform.OS === 'web') {
+    const frameWidth = Math.min(windowWidth, 430);
     return (
       <GestureHandlerRootView style={styles.webRoot}>
         <SafeAreaProvider>
-          <View style={styles.webFrame}>
+          <View style={[styles.webFrame, { width: frameWidth, height: windowHeight }]}>
             {appContent}
           </View>
         </SafeAreaProvider>
@@ -170,9 +172,6 @@ const styles = StyleSheet.create({
     minHeight: '100vh' as any,
   },
   webFrame: {
-    width: '100%',
-    maxWidth: 430,
-    height: '100vh' as any,
     overflow: 'hidden' as any,
     backgroundColor: '#0d0d0d',
     ...Platform.select({
