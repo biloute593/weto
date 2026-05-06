@@ -12,7 +12,6 @@ import { ChatScreen } from './src/screens/ChatScreen';
 import { ChatDetailScreen } from './src/screens/ChatDetailScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
-import { WebLandingScreen } from './src/screens/WebLandingScreen';
 import { Colors, Typography } from './src/theme/colors';
 import { useWetoStore } from './src/store/useWetoStore';
 import { Ionicons } from '@expo/vector-icons';
@@ -123,11 +122,28 @@ function MainTabs() {
 export default function App() {
   const hasCompletedOnboarding = useWetoStore((state) => state.hasCompletedOnboarding);
 
+  const appContent = (
+    <NavigationContainer>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {hasCompletedOnboarding ? (
+          <>
+            <Stack.Screen name="MainTabs" component={MainTabs} />
+            <Stack.Screen name="ChatDetail" component={ChatDetailScreen} />
+          </>
+        ) : (
+          <Stack.Screen name="Welcome" component={WelcomeScreen} />
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+
   if (Platform.OS === 'web') {
     return (
-      <GestureHandlerRootView style={styles.root}>
+      <GestureHandlerRootView style={styles.webRoot}>
         <SafeAreaProvider>
-          <WebLandingScreen />
+          <View style={styles.webFrame}>
+            {appContent}
+          </View>
         </SafeAreaProvider>
       </GestureHandlerRootView>
     );
@@ -136,18 +152,7 @@ export default function App() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        <NavigationContainer>
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
-            {hasCompletedOnboarding ? (
-              <>
-                <Stack.Screen name="MainTabs" component={MainTabs} />
-                <Stack.Screen name="ChatDetail" component={ChatDetailScreen} />
-              </>
-            ) : (
-              <Stack.Screen name="Welcome" component={WelcomeScreen} />
-            )}
-          </Stack.Navigator>
-        </NavigationContainer>
+        {appContent}
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
@@ -156,5 +161,22 @@ export default function App() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+  },
+  webRoot: {
+    flex: 1,
+    backgroundColor: '#0a0a0a',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: '100vh' as any,
+  },
+  webFrame: {
+    width: '100%',
+    maxWidth: 430,
+    height: '100vh' as any,
+    overflow: 'hidden' as any,
+    backgroundColor: '#0d0d0d',
+    ...Platform.select({
+      web: { boxShadow: '0 0 60px rgba(0,0,0,0.6)' },
+    }),
   },
 });
