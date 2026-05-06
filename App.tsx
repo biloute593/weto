@@ -12,6 +12,7 @@ import { ChatScreen } from './src/screens/ChatScreen';
 import { ChatDetailScreen } from './src/screens/ChatDetailScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
+import { WebLandingScreen } from './src/screens/WebLandingScreen';
 import { Colors, Typography } from './src/theme/colors';
 import { useWetoStore } from './src/store/useWetoStore';
 import { Ionicons } from '@expo/vector-icons';
@@ -121,6 +122,16 @@ function MainTabs() {
 
 export default function App() {
   const hasCompletedOnboarding = useWetoStore((state) => state.hasCompletedOnboarding);
+
+  if (Platform.OS === 'web') {
+    return (
+      <GestureHandlerRootView style={styles.root}>
+        <SafeAreaProvider>
+          <WebLandingScreen />
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    );
+  }
 
   return (
     <GestureHandlerRootView style={styles.root}>
