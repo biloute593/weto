@@ -8,11 +8,17 @@ import {
   SafeAreaView,
   Platform,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { AppButton } from '../components/AppButton';
 import { Colors, Spacing, Radius, Typography } from '../theme/colors';
 import { useWetoStore } from '../store/useWetoStore';
 
 export function MatchScreen() {
-  const { matches } = useWetoStore();
+  const { matches, userAvatar } = useWetoStore();
+  const navigation = useNavigation<any>();
+
+  const latestMatch = matches[matches.length - 1];
+  const previousMatches = matches.slice(0, -1).reverse();
 
   if (matches.length === 0) {
     return (
@@ -43,8 +49,53 @@ export function MatchScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
       >
-        {matches.map((match) => (
-          <View key={match.id} style={styles.matchCard}>
+        {latestMatch && (
+          <View style={styles.heroCard}>
+            <Text style={styles.heroEyebrow}>Dernier reveal</Text>
+            <Text style={styles.heroTitle}>Compatibilite detectee avec {latestMatch.name}</Text>
+            <Text style={styles.heroSubtitle}>
+              Weto a trouve un terrain commun solide entre vos reactions, votre humour et votre style relationnel.
+            </Text>
+
+            <View style={styles.heroAvatars}>
+              <View style={styles.heroAvatarCircle}>
+                <Text style={styles.heroAvatarEmoji}>{userAvatar}</Text>
+              </View>
+              <View style={styles.heroHeartBadge}>
+                <Text style={styles.heroHeartText}>💙</Text>
+              </View>
+              <View style={styles.heroAvatarCircle}>
+                <Text style={styles.heroAvatarEmoji}>{latestMatch.avatar}</Text>
+              </View>
+            </View>
+
+            <View style={styles.heroReasons}>
+              {latestMatch.compatibilityReasons.map((reason, idx) => (
+                <View key={idx} style={styles.heroReasonPill}>
+                  <Text style={styles.heroReasonText}>{reason}</Text>
+                </View>
+              ))}
+            </View>
+
+            <AppButton
+              title="Envoyer un message"
+              onPress={() => navigation.navigate('ChatDetail', { contactId: latestMatch.id })}
+              fullWidth
+            />
+          </View>
+        )}
+
+        {previousMatches.length > 0 && (
+          <Text style={styles.sectionLabel}>Autres matchs</Text>
+        )}
+
+        {previousMatches.map((match) => (
+          <TouchableOpacity
+            key={match.id}
+            style={styles.matchCard}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('ChatDetail', { contactId: match.id })}
+          >
             {/* Avatar */}
             <View style={styles.avatarContainer}>
               <View style={styles.avatarCircle}>
@@ -71,10 +122,10 @@ export function MatchScreen() {
             </View>
 
             {/* CTA */}
-            <TouchableOpacity style={styles.msgButton}>
+            <View style={styles.msgButton}>
               <Text style={styles.msgButtonText}>💬</Text>
-            </TouchableOpacity>
-          </View>
+            </View>
+          </TouchableOpacity>
         ))}
       </ScrollView>
     </SafeAreaView>
@@ -135,6 +186,85 @@ const styles = StyleSheet.create({
   listContent: {
     padding: Spacing.md,
     gap: Spacing.md,
+  },
+  heroCard: {
+    backgroundColor: Colors.card,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    gap: Spacing.md,
+    ...Platform.select({
+      web: { boxShadow: '0 6px 24px rgba(0,0,0,0.08)' },
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 18 },
+      android: { elevation: 4 },
+    }),
+  },
+  heroEyebrow: {
+    ...Typography.small,
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  heroTitle: {
+    ...Typography.h1,
+    color: Colors.text,
+  },
+  heroSubtitle: {
+    ...Typography.body,
+    color: Colors.textSecondary,
+  },
+  heroAvatars: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+  },
+  heroAvatarCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: Colors.accentLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroAvatarEmoji: {
+    fontSize: 34,
+  },
+  heroHeartBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    marginHorizontal: -10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.card,
+    zIndex: 1,
+    ...Platform.select({
+      web: { boxShadow: '0 2px 8px rgba(0,0,0,0.08)' },
+    }),
+  },
+  heroHeartText: {
+    fontSize: 18,
+  },
+  heroReasons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  heroReasonPill: {
+    backgroundColor: Colors.background,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+  },
+  heroReasonText: {
+    ...Typography.captionBold,
+    color: Colors.textSecondary,
+  },
+  sectionLabel: {
+    ...Typography.captionBold,
+    color: Colors.textSecondary,
+    paddingHorizontal: Spacing.xs,
+    marginTop: Spacing.xs,
   },
   matchCard: {
     backgroundColor: Colors.card,

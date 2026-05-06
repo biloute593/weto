@@ -1,155 +1,80 @@
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SCENARIOS, Scenario, TraitKey } from '../data/scenarios';
+import { PROFILE_COMPLETION_TARGET, SCENARIOS } from '../data/scenarios';
+import {
+  UserVector,
+  TraitKey,
+  Answer,
+  MatchProfile,
+  ChatMessage,
+  ChatThread,
+} from '../types';
+import {
+  calculateProfile,
+  cosineSimilarity,
+  similarityToPercent,
+  generateCompatibilityReasons,
+  getNextScenario,
+} from '../utils';
 
-export interface UserTraits {
-  sociability: number;
-  emotionalReactivity: number;
-  riskTolerance: number;
-  humorStyle: number;
-  conflictStyle: number;
-  stability: number;
-}
+const { create } = require('zustand/react') as typeof import('zustand/react');
+const { persist, createJSONStorage } = require('zustand/middleware') as typeof import('zustand/middleware');
 
-export interface Answer {
-  scenarioId: string;
-  choiceIndex: number;
-  reactionTimeMs: number;
-  timestamp: number;
-}
+// ─── Initial State ──────────────────────────────────────────────────
 
-export interface MatchProfile {
-  id: string;
-  name: string;
-  avatar: string;
-  traits: UserTraits;
-  compatibilityScore: number;
-  compatibilityReasons: string[];
-}
-
-export interface ChatMessage {
-  id: string;
-  text: string;
-  senderId: 'me' | string;
-  timestamp: number;
-}
-
-export interface ChatThread {
-  contactId: string;
-  contactName: string;
-  contactAvatar: string;
-  messages: ChatMessage[];
-  unread: boolean;
-}
-
-const INITIAL_TRAITS: UserTraits = {
+const INITIAL_VECTOR: UserVector = {
   sociability: 50,
-  emotionalReactivity: 50,
-  riskTolerance: 50,
-  humorStyle: 50,
-  conflictStyle: 50,
+  humor: 50,
+  risk: 50,
+  emotion: 50,
+  conflict: 50,
   stability: 50,
 };
 
-// Database of mock users for the dynamic matching engine
-const MOCK_DB: MatchProfile[] = [
-  { id: 'm1', name: 'Léa', avatar: '👩‍🦰', compatibilityScore: 0, compatibilityReasons: [], traits: { sociability: 80, emotionalReactivity: 40, riskTolerance: 60, humorStyle: 70, conflictStyle: 30, stability: 80 } },
-  { id: 'm2', name: 'Thomas', avatar: '👨‍💼', compatibilityScore: 0, compatibilityReasons: [], traits: { sociability: 40, emotionalReactivity: 60, riskTolerance: 40, humorStyle: 60, conflictStyle: 70, stability: 50 } },
-  { id: 'm3', name: 'Emma', avatar: '👩‍🎨', compatibilityScore: 0, compatibilityReasons: [], traits: { sociability: 90, emotionalReactivity: 80, riskTolerance: 70, humorStyle: 90, conflictStyle: 40, stability: 40 } },
-  { id: 'm4', name: 'Julien', avatar: '👨‍🎤', compatibilityScore: 0, compatibilityReasons: [], traits: { sociability: 30, emotionalReactivity: 30, riskTolerance: 90, humorStyle: 40, conflictStyle: 80, stability: 70 } },
-  { id: 'm5', name: 'Chloé', avatar: '👩‍💻', compatibilityScore: 0, compatibilityReasons: [], traits: { sociability: 60, emotionalReactivity: 50, riskTolerance: 50, humorStyle: 80, conflictStyle: 50, stability: 90 } },
-  { id: 'm6', name: 'Hugo', avatar: '👨‍🚀', compatibilityScore: 0, compatibilityReasons: [], traits: { sociability: 75, emotionalReactivity: 20, riskTolerance: 85, humorStyle: 75, conflictStyle: 45, stability: 85 } },
-  { id: 'm7', name: 'Sofia', avatar: '👩‍🔬', compatibilityScore: 0, compatibilityReasons: [], traits: { sociability: 45, emotionalReactivity: 70, riskTolerance: 30, humorStyle: 50, conflictStyle: 20, stability: 60 } },
+// ─── Mock Users Database (12 users) ─────────────────────────────────
+
+const MOCK_USERS: Omit<MatchProfile, 'compatibilityScore' | 'compatibilityReasons'>[] = [
+  { id: 'm1', name: 'Léa', avatar: '👩‍🦰', traits: { sociability: 80, humor: 70, risk: 60, emotion: 40, conflict: 30, stability: 80 } },
+  { id: 'm2', name: 'Thomas', avatar: '👨‍💼', traits: { sociability: 40, humor: 60, risk: 40, emotion: 60, conflict: 70, stability: 50 } },
+  { id: 'm3', name: 'Emma', avatar: '👩‍🎨', traits: { sociability: 90, humor: 90, risk: 70, emotion: 80, conflict: 40, stability: 40 } },
+  { id: 'm4', name: 'Julien', avatar: '👨‍🎤', traits: { sociability: 30, humor: 40, risk: 90, emotion: 30, conflict: 80, stability: 70 } },
+  { id: 'm5', name: 'Chloé', avatar: '👩‍💻', traits: { sociability: 60, humor: 80, risk: 50, emotion: 50, conflict: 50, stability: 90 } },
+  { id: 'm6', name: 'Hugo', avatar: '👨‍🚀', traits: { sociability: 75, humor: 75, risk: 85, emotion: 20, conflict: 45, stability: 85 } },
+  { id: 'm7', name: 'Sofia', avatar: '👩‍🔬', traits: { sociability: 45, humor: 50, risk: 30, emotion: 70, conflict: 20, stability: 60 } },
+  { id: 'm8', name: 'Lucas', avatar: '👨‍🍳', traits: { sociability: 70, humor: 85, risk: 55, emotion: 45, conflict: 35, stability: 75 } },
+  { id: 'm9', name: 'Inès', avatar: '👩‍🎓', traits: { sociability: 55, humor: 65, risk: 45, emotion: 55, conflict: 55, stability: 65 } },
+  { id: 'm10', name: 'Raphaël', avatar: '👨‍🔧', traits: { sociability: 65, humor: 45, risk: 75, emotion: 35, conflict: 65, stability: 55 } },
+  { id: 'm11', name: 'Camille', avatar: '👩‍⚕️', traits: { sociability: 85, humor: 55, risk: 35, emotion: 65, conflict: 25, stability: 85 } },
+  { id: 'm12', name: 'Axel', avatar: '👨‍🎨', traits: { sociability: 50, humor: 90, risk: 80, emotion: 40, conflict: 60, stability: 45 } },
 ];
 
-const TRAIT_LABELS: Record<TraitKey, string> = {
-  sociability: 'Approche sociale',
-  emotionalReactivity: 'Réactivité émotionnelle',
-  riskTolerance: 'Vision du risque',
-  humorStyle: 'Humour',
-  conflictStyle: 'Gestion de conflit',
-  stability: 'Stabilité'
-};
+const MATCH_SIMILARITY_THRESHOLD = 0.75;
+const MAX_SKIPPED_SCENARIOS = 5;
+const MATCH_DISCOVERY_START = 10;
+const MATCH_DISCOVERY_INTERVAL = 2;
 
-interface WetoState {
-  // User Profile
-  userName: string;
-  userAvatar: string;
-  userTraits: UserTraits;
-  // Progress
-  currentIndex: number;
-  answers: Answer[];
-  answeredIds: Set<string>;
-  startTime: number | null;
-  profileCompletion: number;
-  // Match & Social
-  matches: MatchProfile[];
-  pendingMatch: MatchProfile | null;
-  chats: Record<string, ChatThread>; // contactId -> thread
+// ─── Matching Engine ────────────────────────────────────────────────
 
-  // Actions
-  updateProfile: (name: string, avatar: string) => void;
-  startAnswer: () => void;
-  submitAnswer: (scenarioId: string, choiceIndex: number) => void;
-  nextScenario: () => void;
-  dismissMatch: () => void;
-  sendMessage: (contactId: string, text: string) => void;
-  markChatRead: (contactId: string) => void;
-  resetProgress: () => void; // for testing/demo
-}
-
-function clamp(v: number) {
-  return Math.max(0, Math.min(100, v));
-}
-
-function calculateProfile(traits: UserTraits, deltas: Partial<Record<TraitKey, number>>): UserTraits {
-  const updated = { ...traits };
-  for (const key of Object.keys(deltas) as TraitKey[]) {
-    updated[key] = clamp(updated[key] + (deltas[key] ?? 0));
-  }
-  return updated;
-}
-
-// Math logic: Calculate compatibility score based on distance between traits
-function findMatches(userTraits: UserTraits, existingMatches: MatchProfile[]): MatchProfile | null {
-  const existingIds = new Set(existingMatches.map(m => m.id));
+function findBestMatch(
+  userVector: UserVector,
+  existingMatchIds: Set<string>
+): MatchProfile | null {
   let bestMatch: MatchProfile | null = null;
   let highestScore = 0;
 
-  for (const candidate of MOCK_DB) {
-    if (existingIds.has(candidate.id)) continue;
+  for (const candidate of MOCK_USERS) {
+    if (existingMatchIds.has(candidate.id)) continue;
 
-    // Euclidean-like distance
-    let diffSum = 0;
-    const reasons: string[] = [];
-    const keys = Object.keys(userTraits) as TraitKey[];
-    
-    for (const key of keys) {
-      const diff = Math.abs(userTraits[key] - candidate.traits[key]);
-      diffSum += diff;
-      
-      // If trait is very close, it's a reason for compatibility
-      if (diff < 15) {
-        reasons.push(`${TRAIT_LABELS[key]} similaire`);
-      } else if (Math.abs(userTraits[key] + candidate.traits[key] - 100) < 20) {
-        // Complementary logic (e.g. one is 80, one is 20)
-        reasons.push(`${TRAIT_LABELS[key]} complémentaire`);
-      }
-    }
+    const similarity = cosineSimilarity(userVector, candidate.traits);
+    const score = similarityToPercent(similarity);
 
-    // Max diff per trait is 100, so max total diff is 600.
-    const maxDiff = 600;
-    const rawScore = 100 - (diffSum / maxDiff) * 100;
-    const score = Math.round(rawScore);
-
-    // Dynamic threshold: match if score > 75%
-    if (score > 75 && score > highestScore) {
+    // Match threshold: cosine similarity > 0.75 (which maps to ~87.5% on our scale)
+    if (similarity >= MATCH_SIMILARITY_THRESHOLD && score > highestScore) {
       highestScore = score;
+      const reasons = generateCompatibilityReasons(userVector, candidate.traits);
       bestMatch = {
         ...candidate,
         compatibilityScore: score,
-        compatibilityReasons: reasons.slice(0, 3), // max 3 reasons
+        compatibilityReasons: reasons.length > 0 ? reasons : ['Profils compatibles'],
       };
     }
   }
@@ -157,15 +82,53 @@ function findMatches(userTraits: UserTraits, existingMatches: MatchProfile[]): M
   return bestMatch;
 }
 
+// ─── Store Interface ────────────────────────────────────────────────
+
+interface WetoState {
+  // User Profile
+  userName: string;
+  userAvatar: string;
+  userVector: UserVector;
+  hasCompletedOnboarding: boolean;
+
+  // Progress
+  currentIndex: number;
+  answers: Answer[];
+  answeredIds: Set<string>;
+  skippedScenarioIds: string[];
+  startTime: number | null;
+  profileCompletion: number;
+
+  // Match & Social
+  matches: MatchProfile[];
+  pendingMatch: MatchProfile | null;
+  chats: Record<string, ChatThread>;
+
+  // Actions
+  updateProfile: (name: string, avatar: string) => void;
+  completeOnboarding: (name: string, avatar: string) => void;
+  startAnswer: () => void;
+  submitAnswer: (scenarioId: string, choiceIndex: number) => void;
+  nextScenario: (skippedScenarioId?: string) => void;
+  dismissMatch: () => void;
+  sendMessage: (contactId: string, text: string) => void;
+  markChatRead: (contactId: string) => void;
+  resetProgress: () => void;
+}
+
+// ─── Store Implementation ───────────────────────────────────────────
+
 export const useWetoStore = create<WetoState>()(
   persist(
     (set, get) => ({
       userName: 'Moi',
       userAvatar: '👤',
-      userTraits: { ...INITIAL_TRAITS },
+      userVector: { ...INITIAL_VECTOR },
+      hasCompletedOnboarding: false,
       currentIndex: 0,
       answers: [],
       answeredIds: new Set(),
+      skippedScenarioIds: [],
       startTime: null,
       profileCompletion: 0,
       matches: [],
@@ -174,35 +137,52 @@ export const useWetoStore = create<WetoState>()(
 
       updateProfile: (name, avatar) => set({ userName: name, userAvatar: avatar }),
 
+      completeOnboarding: (name, avatar) =>
+        set({
+          userName: name,
+          userAvatar: avatar,
+          hasCompletedOnboarding: true,
+        }),
+
       startAnswer: () => set({ startTime: Date.now() }),
 
       submitAnswer: (scenarioId, choiceIndex) => {
-        const { startTime, answers, userTraits, answeredIds } = get();
+        const { startTime, answers, userVector, answeredIds, skippedScenarioIds } = get();
         const reactionTimeMs = startTime ? Date.now() - startTime : 0;
         const scenario = SCENARIOS.find((s) => s.id === scenarioId);
         if (!scenario) return;
 
         const choice = scenario.choices[choiceIndex];
-        const newTraits = calculateProfile(userTraits, choice.traitDeltas);
-        const newAnswers = [
+        const newVector = calculateProfile(userVector, choice.traitDeltas);
+        const newAnswers: Answer[] = [
           ...answers,
           { scenarioId, choiceIndex, reactionTimeMs, timestamp: Date.now() },
         ];
         const newAnsweredIds = new Set(answeredIds);
         newAnsweredIds.add(scenarioId);
 
-        const profileCompletion = Math.min(100, Math.round((newAnsweredIds.size / SCENARIOS.length) * 100));
-        
-        let pendingMatch = null;
+        const profileCompletion = Math.min(
+          100,
+          Math.round((newAnsweredIds.size / PROFILE_COMPLETION_TARGET) * 100)
+        );
+
+        let pendingMatch: MatchProfile | null = null;
         let newMatches = get().matches;
-        
-        // Every 3 answers, try to find a new match
-        if (newAnswers.length > 0 && newAnswers.length % 3 === 0) {
-          const match = findMatches(newTraits, newMatches);
+
+        const shouldAttemptMatch =
+          newAnswers.length >= MATCH_DISCOVERY_START &&
+          (newAnswers.length === MATCH_DISCOVERY_START ||
+            (newAnswers.length - MATCH_DISCOVERY_START) % MATCH_DISCOVERY_INTERVAL === 0);
+
+        if (shouldAttemptMatch) {
+          const existingIds = new Set(newMatches.map((m) => m.id));
+          const match = findBestMatch(newVector, existingIds);
+
           if (match) {
             pendingMatch = match;
             newMatches = [...newMatches, match];
-            // Initialize chat thread
+
+            // Initialize chat thread for the new match
             set((state) => ({
               chats: {
                 ...state.chats,
@@ -210,23 +190,26 @@ export const useWetoStore = create<WetoState>()(
                   contactId: match.id,
                   contactName: match.name,
                   contactAvatar: match.avatar,
-                  messages: [{
-                    id: Date.now().toString(),
-                    text: 'Vous avez matché ! Envoyez le premier message.',
-                    senderId: 'system',
-                    timestamp: Date.now()
-                  }],
+                  messages: [
+                    {
+                      id: Date.now().toString(),
+                      text: 'Vous avez matché ! Envoyez le premier message.',
+                      senderId: 'system',
+                      timestamp: Date.now(),
+                    },
+                  ],
                   unread: true,
-                }
-              }
+                },
+              },
             }));
           }
         }
 
         set({
           answers: newAnswers,
-          userTraits: newTraits,
+          userVector: newVector,
           answeredIds: newAnsweredIds,
+          skippedScenarioIds: skippedScenarioIds.filter((id) => id !== scenarioId),
           startTime: null,
           pendingMatch,
           matches: newMatches,
@@ -234,11 +217,37 @@ export const useWetoStore = create<WetoState>()(
         });
       },
 
-      nextScenario: () => {
-        const { currentIndex } = get();
-        if (currentIndex < SCENARIOS.length - 1) {
-          set({ currentIndex: currentIndex + 1, startTime: Date.now() });
+      nextScenario: (skippedScenarioId) => {
+        const { currentIndex, answeredIds, skippedScenarioIds } = get();
+        const nextSkippedIds = skippedScenarioId && !answeredIds.has(skippedScenarioId)
+          ? [
+              skippedScenarioId,
+              ...skippedScenarioIds.filter((id) => id !== skippedScenarioId),
+            ].slice(0, MAX_SKIPPED_SCENARIOS)
+          : skippedScenarioIds;
+
+        // Use AI hook to determine next scenario
+        const next = getNextScenario(
+          get().userVector,
+          answeredIds,
+          SCENARIOS,
+          new Set(nextSkippedIds)
+        );
+        if (!next) {
+          set({
+            currentIndex: SCENARIOS.length,
+            skippedScenarioIds: nextSkippedIds,
+            startTime: null,
+          });
+          return;
         }
+
+        const nextIdx = SCENARIOS.findIndex((s) => s.id === next.id);
+        set({
+          currentIndex: nextIdx >= 0 ? nextIdx : currentIndex + 1,
+          skippedScenarioIds: nextSkippedIds,
+          startTime: Date.now(),
+        });
       },
 
       dismissMatch: () => set({ pendingMatch: null }),
@@ -261,19 +270,28 @@ export const useWetoStore = create<WetoState>()(
                 ...thread,
                 messages: [...thread.messages, newMessage],
                 unread: false,
-              }
-            }
+              },
+            },
           };
         });
 
         // Simulate reply from the mock user
         setTimeout(() => {
+          const replies = [
+            "Oh, intéressant ! J'aurais sûrement réagi de la même façon.",
+            "C'est marrant, on pense pareil sur ce sujet 😄",
+            "J'adore ta façon de voir les choses !",
+            "Haha, tu me surprends ! En bien 😊",
+            "On devrait en discuter autour d'un café ☕",
+          ];
+          const randomReply = replies[Math.floor(Math.random() * replies.length)];
+
           set((state) => {
             const thread = state.chats[contactId];
             if (!thread) return state;
             const replyMsg: ChatMessage = {
-              id: Date.now().toString(),
-              text: `Oh, intéressant ! J'aurais sûrement réagi de la même façon.`,
+              id: (Date.now() + 1).toString(),
+              text: randomReply,
               senderId: contactId,
               timestamp: Date.now(),
             };
@@ -284,11 +302,11 @@ export const useWetoStore = create<WetoState>()(
                   ...thread,
                   messages: [...thread.messages, replyMsg],
                   unread: true,
-                }
-              }
+                },
+              },
             };
           });
-        }, 2000);
+        }, 1500 + Math.random() * 2000);
       },
 
       markChatRead: (contactId) => {
@@ -298,38 +316,52 @@ export const useWetoStore = create<WetoState>()(
           return {
             chats: {
               ...state.chats,
-              [contactId]: { ...thread, unread: false }
-            }
+              [contactId]: { ...thread, unread: false },
+            },
           };
         });
       },
-      
+
       resetProgress: () => {
         set({
           currentIndex: 0,
           answers: [],
           answeredIds: new Set(),
-          userTraits: { ...INITIAL_TRAITS },
+          skippedScenarioIds: [],
+          userVector: { ...INITIAL_VECTOR },
           matches: [],
           chats: {},
-          profileCompletion: 0
+          pendingMatch: null,
+          profileCompletion: 0,
         });
-      }
+      },
     }),
     {
       name: 'weto-storage',
       storage: createJSONStorage(() => AsyncStorage),
-      // Set isn't natively serializable, so we define custom serialize/deserialize logic if needed,
-      // but simpler to just convert it in partialize/merge or use Array.
       partialize: (state) => ({
         ...state,
-        answeredIds: Array.from(state.answeredIds), // serialize Set to Array
+        answeredIds: Array.from(state.answeredIds),
       }),
-      merge: (persistedState: any, currentState) => ({
-        ...currentState,
-        ...persistedState,
-        answeredIds: new Set(persistedState?.answeredIds || []), // deserialize Array to Set
-      }),
+      merge: (persistedState: any, currentState) => {
+        const inferredOnboarding =
+          persistedState?.hasCompletedOnboarding ??
+          Boolean(
+            (persistedState?.answers?.length ?? 0) > 0 ||
+              (persistedState?.userName && persistedState.userName !== 'Moi') ||
+              (persistedState?.userAvatar && persistedState.userAvatar !== '👤')
+          );
+
+        return {
+          ...currentState,
+          ...persistedState,
+          hasCompletedOnboarding: inferredOnboarding,
+          answeredIds: new Set(persistedState?.answeredIds || []),
+        };
+      },
     }
   )
 );
+
+// Re-export types for convenience
+export type { UserVector, Answer, MatchProfile, ChatMessage, ChatThread };

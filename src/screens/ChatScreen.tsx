@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -7,29 +7,49 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Platform,
+  TextInput,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Spacing, Radius, Typography } from '../theme/colors';
-import { useWetoStore, ChatThread } from '../store/useWetoStore';
+import { useWetoStore } from '../store/useWetoStore';
+import { ChatThread } from '../types';
 
 export function ChatScreen() {
   const { chats } = useWetoStore();
   const navigation = useNavigation<any>();
+  const [query, setQuery] = useState('');
 
-  // Convert the chats object map into an array and sort by latest message
-  const chatList = Object.values(chats).sort((a, b) => {
-    const aLast = a.messages[a.messages.length - 1]?.timestamp || 0;
-    const bLast = b.messages[b.messages.length - 1]?.timestamp || 0;
-    return bLast - aLast;
-  });
+  const chatList = useMemo(
+    () =>
+      Object.values(chats).sort((a, b) => {
+        const aLast = a.messages[a.messages.length - 1]?.timestamp || 0;
+        const bLast = b.messages[b.messages.length - 1]?.timestamp || 0;
+        return bLast - aLast;
+      }),
+    [chats]
+  );
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredChats = useMemo(() => {
+    if (!normalizedQuery) return chatList;
+
+    return chatList.filter((thread) => {
+      const lastMessage = thread.messages[thread.messages.length - 1]?.text?.toLowerCase() ?? '';
+      return (
+        thread.contactName.toLowerCase().includes(normalizedQuery) ||
+        lastMessage.includes(normalizedQuery)
+      );
+    });
+  }, [chatList, normalizedQuery]);
 
   const renderItem = ({ item }: { item: ChatThread }) => {
     const lastMessage = item.messages[item.messages.length - 1];
-    
+
     return (
-      <TouchableOpacity 
-        style={styles.chatRow} 
+      <TouchableOpacity
+        style={styles.chatRow}
         onPress={() => navigation.navigate('ChatDetail', { contactId: item.contactId })}
+        activeOpacity={0.7}
       >
         <View style={styles.avatarContainer}>
           <View style={styles.avatarCircle}>
@@ -44,7 +64,12 @@ export function ChatScreen() {
               {item.contactName}
             </Text>
             <Text style={styles.timestamp}>
-              {lastMessage ? new Date(lastMessage.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
+              {lastMessage
+                ? new Date(lastMessage.timestamp).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : ''}
             </Text>
           </View>
           <Text
@@ -58,29 +83,65 @@ export function ChatScreen() {
     );
   };
 
+  if (chatList.length === 0) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Chat</Text>
+        </View>
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyEmoji}>💬</Text>
+          <Text style={styles.emptyTitle}>Pas encore de conversations</Text>
+          <Text style={styles.emptySubtitle}>
+            Tes conversations avec tes matchs apparaîtront ici.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Chat</Text>
-        <TouchableOpacity style={styles.composeButton}>
-          <Text style={styles.composeText}>✏️</Text>
-        </TouchableOpacity>
       </View>
 
-      {/* Search bar */}
       <View style={styles.searchContainer}>
         <Text style={styles.searchIcon}>🔍</Text>
-        <Text style={styles.searchPlaceholder}>Rechercher une conversation…</Text>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Rechercher une conversation..."
+          placeholderTextColor={Colors.textMuted}
+          value={query}
+          onChangeText={setQuery}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        {query.length > 0 && (
+          <TouchableOpacity onPress={() => setQuery('')} style={styles.clearSearchButton}>
+            <Text style={styles.clearSearchText}>×</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      <FlatList
-        data={chatList}
-        keyExtractor={(item) => item.contactId}
-        renderItem={renderItem}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-      />
+      {filteredChats.length === 0 ? (
+        <View style={styles.emptySearchContainer}>
+          <Text style={styles.emptySearchEmoji}>🫥</Text>
+          <Text style={styles.emptySearchTitle}>Aucun resultat</Text>
+          <Text style={styles.emptySearchSubtitle}>
+            Essaie un prenom ou un mot du dernier message.
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredChats}
+          keyExtractor={(item) => item.contactId}
+          renderItem={renderItem}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -101,19 +162,27 @@ const styles = StyleSheet.create({
     ...Typography.title,
     color: Colors.text,
   },
-  composeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.card,
+  emptyContainer: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    ...Platform.select({
-      web: { boxShadow: '0 2px 8px rgba(0,0,0,0.07)' },
-    }),
+    padding: Spacing.xl,
   },
-  composeText: {
-    fontSize: 18,
+  emptyEmoji: {
+    fontSize: 60,
+    marginBottom: Spacing.md,
+  },
+  emptyTitle: {
+    ...Typography.h1,
+    color: Colors.text,
+    textAlign: 'center',
+    marginBottom: Spacing.sm,
+  },
+  emptySubtitle: {
+    ...Typography.body,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -135,6 +204,44 @@ const styles = StyleSheet.create({
   searchPlaceholder: {
     ...Typography.body,
     color: Colors.textMuted,
+  },
+  searchInput: {
+    flex: 1,
+    ...Typography.body,
+    color: Colors.text,
+    paddingVertical: 0,
+  },
+  clearSearchButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.background,
+  },
+  clearSearchText: {
+    color: Colors.textSecondary,
+    fontSize: 18,
+    lineHeight: 18,
+  },
+  emptySearchContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.xl,
+    gap: Spacing.sm,
+  },
+  emptySearchEmoji: {
+    fontSize: 42,
+  },
+  emptySearchTitle: {
+    ...Typography.h2,
+    color: Colors.text,
+  },
+  emptySearchSubtitle: {
+    ...Typography.body,
+    color: Colors.textSecondary,
+    textAlign: 'center',
   },
   listContent: {
     paddingHorizontal: Spacing.md,

@@ -13,6 +13,7 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Colors, Spacing, Radius, Typography } from '../theme/colors';
 import { useWetoStore } from '../store/useWetoStore';
+import { ChatMessage } from '../types';
 
 export function ChatDetailScreen() {
   const route = useRoute<any>();
@@ -28,12 +29,17 @@ export function ChatDetailScreen() {
     if (thread && thread.unread) {
       markChatRead(contactId);
     }
-  }, [thread?.messages.length]); // mark read when messages arrive while screen is open
+  }, [thread?.messages.length]);
 
   if (!thread) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text>Discussion introuvable.</Text>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Discussion introuvable.</Text>
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+            <Text style={styles.backBtnText}>← Retour</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
@@ -44,7 +50,7 @@ export function ChatDetailScreen() {
     setInputText('');
   };
 
-  const renderMessage = ({ item }: { item: any }) => {
+  const renderMessage = ({ item }: { item: ChatMessage }) => {
     const isMe = item.senderId === 'me';
     const isSystem = item.senderId === 'system';
 
@@ -89,8 +95,8 @@ export function ChatDetailScreen() {
       </View>
 
       {/* Chat Area */}
-      <KeyboardAvoidingView 
-        style={styles.keyboardView} 
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <FlatList
@@ -113,8 +119,9 @@ export function ChatDetailScreen() {
             onChangeText={setInputText}
             multiline
             maxLength={300}
+            onSubmitEditing={handleSend}
           />
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
             onPress={handleSend}
             disabled={!inputText.trim()}
@@ -130,6 +137,10 @@ export function ChatDetailScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   keyboardView: { flex: 1 },
+  errorContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md },
+  errorText: { ...Typography.body, color: Colors.textSecondary },
+  backBtn: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md },
+  backBtnText: { ...Typography.bodyBold, color: Colors.accent },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -159,7 +170,13 @@ const styles = StyleSheet.create({
   avatarEmojiSmall: { fontSize: 16 },
   messageBubble: { maxWidth: '75%', paddingHorizontal: Spacing.md, paddingVertical: 10, borderRadius: Radius.md },
   messageBubbleMe: { backgroundColor: Colors.accent, borderBottomRightRadius: 4 },
-  messageBubbleThem: { backgroundColor: Colors.card, borderBottomLeftRadius: 4, ...Platform.select({ web: { boxShadow: '0 1px 4px rgba(0,0,0,0.05)' } }) },
+  messageBubbleThem: {
+    backgroundColor: Colors.card,
+    borderBottomLeftRadius: 4,
+    ...Platform.select({
+      web: { boxShadow: '0 1px 4px rgba(0,0,0,0.05)' },
+    }),
+  },
   messageText: { ...Typography.body, color: Colors.text, lineHeight: 22 },
   messageTextMe: { color: Colors.white },
   inputContainer: { flexDirection: 'row', padding: Spacing.md, gap: Spacing.sm, backgroundColor: Colors.card, borderTopWidth: 1, borderTopColor: Colors.border },

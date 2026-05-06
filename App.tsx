@@ -4,30 +4,33 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, Text, Platform, StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { FeedScreen } from './src/screens/FeedScreen';
 import { MatchScreen } from './src/screens/MatchScreen';
 import { ChatScreen } from './src/screens/ChatScreen';
 import { ChatDetailScreen } from './src/screens/ChatDetailScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
+import { WelcomeScreen } from './src/screens/WelcomeScreen';
 import { Colors, Typography } from './src/theme/colors';
 import { useWetoStore } from './src/store/useWetoStore';
+import { Ionicons } from '@expo/vector-icons';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-const TAB_ICONS: Record<string, string> = {
-  Feed: '⊞',
-  Match: '♡',
-  Chat: '◯',
-  Profil: '人',
+const TAB_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  Feed: 'home-outline',
+  Match: 'heart-outline',
+  Chat: 'chatbubble-outline',
+  Profil: 'person-outline',
 };
 
-const TAB_ICONS_ACTIVE: Record<string, string> = {
-  Feed: '⊞',
-  Match: '♥',
-  Chat: '◉',
-  Profil: '人',
+const TAB_ICONS_ACTIVE: Record<string, keyof typeof Ionicons.glyphMap> = {
+  Feed: 'home',
+  Match: 'heart',
+  Chat: 'chatbubble',
+  Profil: 'person',
 };
 
 function TabIcon({ name, focused }: { name: string; focused: boolean }) {
@@ -39,9 +42,11 @@ function TabIcon({ name, focused }: { name: string; focused: boolean }) {
   return (
     <View style={tabStyles.iconWrap}>
       <View style={tabStyles.iconInner}>
-        <Text style={[tabStyles.iconText, focused && tabStyles.iconActive]}>
-          {focused ? TAB_ICONS_ACTIVE[name] : TAB_ICONS[name]}
-        </Text>
+        <Ionicons
+          name={focused ? TAB_ICONS_ACTIVE[name] : TAB_ICONS[name]}
+          size={24}
+          color={focused ? Colors.tabActive : Colors.tabInactive}
+        />
         {showBadge && (
           <View style={tabStyles.badge}>
             <Text style={tabStyles.badgeText}>{badgeCount}</Text>
@@ -60,18 +65,11 @@ const tabStyles = StyleSheet.create({
   iconInner: {
     position: 'relative',
   },
-  iconText: {
-    fontSize: 22,
-    color: Colors.tabInactive,
-  },
-  iconActive: {
-    color: Colors.tabActive,
-  },
   badge: {
     position: 'absolute',
     top: -4,
     right: -8,
-    backgroundColor: Colors.accent,
+    backgroundColor: '#FF3B30',
     borderRadius: 8,
     minWidth: 16,
     height: 16,
@@ -122,14 +120,30 @@ function MainTabs() {
 }
 
 export default function App() {
+  const hasCompletedOnboarding = useWetoStore((state) => state.hasCompletedOnboarding);
+
   return (
-    <SafeAreaProvider>
-      <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="MainTabs" component={MainTabs} />
-          <Stack.Screen name="ChatDetail" component={ChatDetailScreen} />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={styles.root}>
+      <SafeAreaProvider>
+        <NavigationContainer>
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            {hasCompletedOnboarding ? (
+              <>
+                <Stack.Screen name="MainTabs" component={MainTabs} />
+                <Stack.Screen name="ChatDetail" component={ChatDetailScreen} />
+              </>
+            ) : (
+              <Stack.Screen name="Welcome" component={WelcomeScreen} />
+            )}
+          </Stack.Navigator>
+        </NavigationContainer>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+});

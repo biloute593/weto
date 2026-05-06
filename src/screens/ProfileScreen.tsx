@@ -9,54 +9,101 @@ import {
   Platform,
   TextInput,
   Modal,
+  Alert,
 } from 'react-native';
+import { AppButton } from '../components/AppButton';
+import { ProgressRing } from '../components/ProgressRing';
 import { Colors, Spacing, Radius, Typography } from '../theme/colors';
-import { useWetoStore, UserTraits } from '../store/useWetoStore';
+import { useWetoStore } from '../store/useWetoStore';
+import { TRAIT_LABELS, getDominantTrait } from '../utils';
+import { TraitKey } from '../types';
+import { PROFILE_COMPLETION_TARGET } from '../data/scenarios';
 
-const TRAIT_LABELS: Record<keyof UserTraits, string> = {
-  sociability: 'Approche sociale',
-  emotionalReactivity: 'Réactivité émotionnelle',
-  riskTolerance: 'Tolérance au risque',
-  humorStyle: "Style d'humour",
-  conflictStyle: 'Gestion des conflits',
-  stability: 'Stabilité',
+const TRAIT_EMOJIS: Record<TraitKey, string> = {
+  sociability: '🌍',
+  humor: '😄',
+  risk: '🎯',
+  emotion: '💙',
+  conflict: '🤝',
+  stability: '⚖️',
 };
 
-const TRAIT_COLORS: Record<keyof UserTraits, string> = {
+const TRAIT_BAR_COLORS: Record<TraitKey, string> = {
   sociability: '#007AFF',
-  emotionalReactivity: '#FF6B9D',
-  riskTolerance: '#FF9500',
-  humorStyle: '#34C759',
-  conflictStyle: '#AF52DE',
-  stability: '#5AC8FA',
+  humor: '#FF9500',
+  risk: '#FF3B30',
+  emotion: '#AF52DE',
+  conflict: '#34C759',
+  stability: '#5856D6',
+};
+
+const TRAIT_SUMMARIES: Record<TraitKey, string> = {
+  sociability: 'Tu t actives dans la rencontre et tu lis vite les dynamiques sociales.',
+  humor: 'Tu crées du lien par le decalage, la repartie et la legerete.',
+  risk: 'Tu reagis bien a l incertitude et tu aimes les situations qui bougent.',
+  emotion: 'Tu ressens fort, ce qui donne de l intensite a tes choix et a tes liens.',
+  conflict: 'Tu n esquives pas facilement la friction quand quelque chose compte.',
+  stability: 'Tu privilegies les signaux fiables, les cadres clairs et les relations solides.',
 };
 
 export function ProfileScreen() {
-  const { userTraits, profileCompletion, answers, matches, userName, userAvatar, updateProfile, resetProgress } = useWetoStore();
+  const {
+    userVector,
+    profileCompletion,
+    answers,
+    matches,
+    userName,
+    userAvatar,
+    updateProfile,
+    resetProgress,
+  } = useWetoStore();
+
   const [isEditModalVisible, setEditModalVisible] = useState(false);
   const [editName, setEditName] = useState(userName);
   const [editAvatar, setEditAvatar] = useState(userAvatar);
 
-  const traitKeys = Object.keys(userTraits) as (keyof UserTraits)[];
-
-  const dominantTrait = traitKeys.reduce((a, b) =>
-    userTraits[a] > userTraits[b] ? a : b
-  );
+  const traitKeys = Object.keys(userVector) as TraitKey[];
+  const dominant = getDominantTrait(userVector);
+  const remainingAnswers = Math.max(0, PROFILE_COMPLETION_TARGET - answers.length);
+  const hasReliableSignal = answers.length >= PROFILE_COMPLETION_TARGET;
 
   const handleSaveProfile = () => {
     updateProfile(editName || 'Moi', editAvatar || '👤');
     setEditModalVisible(false);
   };
 
+  const handleReset = () => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const shouldReset = window.confirm('Tu es sûr·e de vouloir recommencer à zéro ?');
+      if (shouldReset) {
+        resetProgress();
+      }
+      return;
+    }
+
+    Alert.alert(
+      'Réinitialiser',
+      'Tu es sûr·e de vouloir recommencer à zéro ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Réinitialiser', style: 'destructive', onPress: resetProgress },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.headerTitleRow}>
-          <Text style={styles.headerAvatar}>{userAvatar}</Text>
-          <Text style={styles.title}>{userName}</Text>
-        </View>
-        <TouchableOpacity style={styles.settingsButton} onPress={() => setEditModalVisible(true)}>
-          <Text style={styles.settingsIcon}>✏️</Text>
+        <Text style={styles.title}>Mon profil</Text>
+        <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={() => {
+            setEditName(userName);
+            setEditAvatar(userAvatar);
+            setEditModalVisible(true);
+          }}
+        >
+          <Text style={styles.settingsIcon}>⚙️</Text>
         </TouchableOpacity>
       </View>
 
@@ -66,17 +113,17 @@ export function ProfileScreen() {
       >
         {/* Profile completion card */}
         <View style={styles.completionCard}>
-          <View style={styles.completionCircle}>
+          <ProgressRing progress={profileCompletion} size={80} strokeWidth={7}>
             <Text style={styles.completionPercent}>{profileCompletion}%</Text>
-          </View>
+          </ProgressRing>
           <View style={styles.completionInfo}>
             <Text style={styles.completionTitle}>
-              {profileCompletion < 100 ? 'Profil en construction' : 'Profil complet !'}
+              {hasReliableSignal ? 'Profil lisible' : 'Profil en construction'}
             </Text>
             <Text style={styles.completionSubtitle}>
-              {profileCompletion < 100
-                ? 'Plus tu joues, plus les matchs seront pertinents.'
-                : `Tu as répondu à ${answers.length} dilemmes. 🎉`}
+              {hasReliableSignal
+                ? 'Le signal est assez net pour matcher, puis continuer a s affiner.'
+                : `${answers.length} reponse${answers.length > 1 ? 's' : ''} enregistree${answers.length > 1 ? 's' : ''} · profil lisible autour de ${PROFILE_COMPLETION_TARGET} dilemmes`}
             </Text>
             {/* Progress bar */}
             <View style={styles.progressBg}>
@@ -87,7 +134,7 @@ export function ProfileScreen() {
           </View>
         </View>
 
-        {/* Stats */}
+        {/* Stats row */}
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <Text style={styles.statNumber}>{answers.length}</Text>
@@ -98,36 +145,54 @@ export function ProfileScreen() {
             <Text style={styles.statLabel}>Matchs</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={[styles.statNumber, { fontSize: 20 }]}>
-              {TRAIT_LABELS[dominantTrait]?.split(' ')[0] ?? '—'}
-            </Text>
-            <Text style={styles.statLabel}>Dominant</Text>
+            <Text style={styles.statEmoji}>{TRAIT_EMOJIS[dominant.key]}</Text>
+            <Text style={styles.statLabel}>{dominant.label}</Text>
           </View>
+        </View>
+
+        <View style={styles.identityCard}>
+          <View style={styles.identityAvatar}>
+            <Text style={styles.identityAvatarText}>{userAvatar}</Text>
+          </View>
+          <View style={styles.identityInfo}>
+            <Text style={styles.identityName}>{userName}</Text>
+            <Text style={styles.identityTag}>Signature actuelle: {dominant.label}</Text>
+            <Text style={styles.identitySummary}>{TRAIT_SUMMARIES[dominant.key]}</Text>
+          </View>
+        </View>
+
+        <View style={styles.signalCard}>
+          <Text style={styles.signalEyebrow}>Lecture Weto</Text>
+          <Text style={styles.signalTitle}>
+            {hasReliableSignal
+              ? 'Le profil est deja assez net pour matcher.'
+              : 'Encore quelques dilemmes et la lecture devient fiable.'}
+          </Text>
+          <Text style={styles.signalBody}>
+            {hasReliableSignal
+              ? 'A partir de la, Weto peut matcher de facon serieuse. Si tu continues a repondre, tu affines surtout les nuances plutot que le socle.'
+              : `Encore ${remainingAnswers} dilemme${remainingAnswers > 1 ? 's' : ''} environ pour stabiliser les zones les moins lisibles et rendre les matchs plus solides.`}
+          </Text>
         </View>
 
         {/* Traits */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Mes traits (calculés)</Text>
+          <Text style={styles.sectionTitle}>Mes traits</Text>
           <View style={styles.traitsContainer}>
             {traitKeys.map((key) => (
               <View key={key} style={styles.traitRow}>
                 <View style={styles.traitLabelRow}>
-                  <View
-                    style={[
-                      styles.traitDot,
-                      { backgroundColor: TRAIT_COLORS[key] },
-                    ]}
-                  />
+                  <Text style={styles.traitEmoji}>{TRAIT_EMOJIS[key]}</Text>
                   <Text style={styles.traitLabel}>{TRAIT_LABELS[key]}</Text>
-                  <Text style={styles.traitValue}>{Math.round(userTraits[key])}%</Text>
+                  <Text style={styles.traitValue}>{Math.round(userVector[key])}%</Text>
                 </View>
                 <View style={styles.traitBarBg}>
                   <View
                     style={[
                       styles.traitBarFg,
                       {
-                        width: `${userTraits[key]}%` as any,
-                        backgroundColor: TRAIT_COLORS[key],
+                        width: `${userVector[key]}%` as any,
+                        backgroundColor: TRAIT_BAR_COLORS[key],
                       },
                     ]}
                   />
@@ -137,20 +202,10 @@ export function ProfileScreen() {
           </View>
         </View>
 
-        {/* Dominant trait card */}
-        <View style={styles.dominantCard}>
-          <Text style={styles.dominantEmoji}>🧬</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.dominantTitle}>Trait dominant</Text>
-            <Text style={styles.dominantName}>{TRAIT_LABELS[dominantTrait]}</Text>
-            <Text style={styles.dominantValue}>{Math.round(userTraits[dominantTrait])} / 100</Text>
-          </View>
-        </View>
-
-        <TouchableOpacity style={styles.resetButton} onPress={resetProgress}>
+        {/* Reset */}
+        <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
           <Text style={styles.resetButtonText}>Réinitialiser (Démo)</Text>
         </TouchableOpacity>
-
       </ScrollView>
 
       {/* Edit Profile Modal */}
@@ -158,35 +213,45 @@ export function ProfileScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Modifier le profil</Text>
-            
+
             <Text style={styles.inputLabel}>Avatar (Emoji)</Text>
-            <TextInput 
+            <TextInput
               style={styles.textInput}
               value={editAvatar}
               onChangeText={setEditAvatar}
               maxLength={2}
+              placeholder="👤"
+              placeholderTextColor={Colors.textMuted}
             />
 
             <Text style={styles.inputLabel}>Prénom</Text>
-            <TextInput 
+            <TextInput
               style={styles.textInput}
               value={editName}
               onChangeText={setEditName}
               maxLength={20}
+              placeholder="Ton prénom"
+              placeholderTextColor={Colors.textMuted}
             />
 
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalBtnSecondary} onPress={() => setEditModalVisible(false)}>
-                <Text style={styles.modalBtnTextSecondary}>Annuler</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.modalBtnPrimary} onPress={handleSaveProfile}>
-                <Text style={styles.modalBtnTextPrimary}>Sauvegarder</Text>
-              </TouchableOpacity>
+              <AppButton
+                title="Annuler"
+                onPress={() => setEditModalVisible(false)}
+                variant="secondary"
+                size="md"
+                style={styles.modalActionButton}
+              />
+              <AppButton
+                title="Sauvegarder"
+                onPress={handleSaveProfile}
+                size="md"
+                style={styles.modalActionButton}
+              />
             </View>
           </View>
         </View>
       </Modal>
-
     </SafeAreaView>
   );
 }
@@ -202,14 +267,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-  },
-  headerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  headerAvatar: {
-    fontSize: 24,
   },
   title: {
     ...Typography.title,
@@ -246,16 +303,6 @@ const styles = StyleSheet.create({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 12 },
       android: { elevation: 3 },
     }),
-  },
-  completionCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: Colors.accentLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: Colors.accent,
   },
   completionPercent: {
     ...Typography.h1,
@@ -298,16 +345,86 @@ const styles = StyleSheet.create({
     gap: 4,
     ...Platform.select({
       web: { boxShadow: '0 2px 12px rgba(0,0,0,0.06)' },
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 8 },
+      android: { elevation: 2 },
     }),
   },
   statNumber: {
     ...Typography.h1,
     color: Colors.accent,
   },
+  statEmoji: {
+    fontSize: 24,
+  },
   statLabel: {
     ...Typography.small,
     color: Colors.textSecondary,
     textAlign: 'center',
+  },
+  identityCard: {
+    backgroundColor: Colors.card,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    flexDirection: 'row',
+    gap: Spacing.md,
+    alignItems: 'center',
+    ...Platform.select({
+      web: { boxShadow: '0 4px 20px rgba(0,0,0,0.07)' },
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12 },
+      android: { elevation: 2 },
+    }),
+  },
+  identityAvatar: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: Colors.accentLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  identityAvatarText: {
+    fontSize: 34,
+  },
+  identityInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  identityName: {
+    ...Typography.h2,
+    color: Colors.text,
+  },
+  identityTag: {
+    ...Typography.captionBold,
+    color: Colors.accent,
+  },
+  identitySummary: {
+    ...Typography.body,
+    color: Colors.textSecondary,
+  },
+  signalCard: {
+    backgroundColor: Colors.card,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    gap: Spacing.xs,
+    ...Platform.select({
+      web: { boxShadow: '0 4px 20px rgba(0,0,0,0.07)' },
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12 },
+      android: { elevation: 2 },
+    }),
+  },
+  signalEyebrow: {
+    ...Typography.small,
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  signalTitle: {
+    ...Typography.bodyBold,
+    color: Colors.text,
+  },
+  signalBody: {
+    ...Typography.body,
+    color: Colors.textSecondary,
   },
   section: {
     gap: Spacing.md,
@@ -323,6 +440,8 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     ...Platform.select({
       web: { boxShadow: '0 4px 20px rgba(0,0,0,0.07)' },
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12 },
+      android: { elevation: 2 },
     }),
   },
   traitRow: {
@@ -333,10 +452,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  traitDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  traitEmoji: {
+    fontSize: 16,
   },
   traitLabel: {
     ...Typography.body,
@@ -355,33 +472,6 @@ const styles = StyleSheet.create({
   traitBarFg: {
     height: 6,
     borderRadius: 3,
-  },
-  dominantCard: {
-    backgroundColor: Colors.accentLight,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.accent + '30',
-  },
-  dominantEmoji: {
-    fontSize: 36,
-  },
-  dominantTitle: {
-    ...Typography.caption,
-    color: Colors.accent,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  dominantName: {
-    ...Typography.h2,
-    color: Colors.text,
-  },
-  dominantValue: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
   },
   resetButton: {
     paddingVertical: Spacing.md,
@@ -430,24 +520,7 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     marginTop: Spacing.md,
   },
-  modalBtnSecondary: {
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderRadius: Radius.pill,
-  },
-  modalBtnTextSecondary: {
-    ...Typography.bodyBold,
-    color: Colors.textSecondary,
-  },
-  modalBtnPrimary: {
-    backgroundColor: Colors.accent,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: Radius.pill,
-  },
-  modalBtnTextPrimary: {
-    ...Typography.bodyBold,
-    color: Colors.white,
+  modalActionButton: {
+    flex: 1,
   },
 });
-

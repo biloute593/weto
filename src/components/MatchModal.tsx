@@ -1,15 +1,16 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
-  Animated,
   Platform,
   Dimensions,
 } from 'react-native';
+import Animated, { FadeIn, FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated';
+import { AppButton } from './AppButton';
 import { Colors, Spacing, Radius, Typography } from '../theme/colors';
-import { MatchProfile } from '../store/useWetoStore';
+import { MatchProfile } from '../types';
+import { useWetoStore } from '../store/useWetoStore';
 
 const { width } = Dimensions.get('window');
 
@@ -19,80 +20,45 @@ interface MatchModalProps {
   onMessage: () => void;
 }
 
-const REASON_ICONS: Record<string, string> = {
-  'Humour similaire': '😄',
-  'Valeurs alignées': '✅',
-  'Style relationnel compatible': '💜',
-  'Vision du risque proche': '🎯',
-  'Style de conflit complémentaire': '🤝',
-  'Réactivité émotionnelle similaire': '💙',
-  'Humor Style +++': '😂',
-  'Même approche sociale': '🌍',
-};
-
 export function MatchModal({ match, onDismiss, onMessage }: MatchModalProps) {
-  const backdropAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.7)).current;
-  const confettiAnims = Array.from({ length: 6 }, () => ({
-    y: useRef(new Animated.Value(0)).current,
-    x: useRef(new Animated.Value(0)).current,
-    opacity: useRef(new Animated.Value(1)).current,
-  }));
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(backdropAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
-      Animated.spring(scaleAnim, { toValue: 1, tension: 70, friction: 8, useNativeDriver: true }),
-    ]).start();
-
-    // Confetti animation
-    confettiAnims.forEach((anim, idx) => {
-      const delay = idx * 80;
-      Animated.sequence([
-        Animated.delay(delay),
-        Animated.parallel([
-          Animated.timing(anim.y, { toValue: -60 - idx * 10, duration: 600, useNativeDriver: true }),
-          Animated.timing(anim.x, { toValue: (idx % 2 === 0 ? 1 : -1) * (20 + idx * 8), duration: 600, useNativeDriver: true }),
-          Animated.timing(anim.opacity, { toValue: 0, duration: 600, useNativeDriver: true }),
-        ]),
-      ]).start();
-    });
-  }, []);
+  const { userAvatar, userName } = useWetoStore();
 
   const confettiEmojis = ['🎉', '✨', '💙', '🎊', '⭐', '💫'];
 
   return (
-    <Animated.View style={[styles.backdrop, { opacity: backdropAnim }]}>
-      <Animated.View style={[styles.modal, { transform: [{ scale: scaleAnim }] }]}>
+    <Animated.View entering={FadeIn.duration(220)} style={styles.backdrop}>
+      <Animated.View entering={ZoomIn.springify().damping(16)} style={styles.modal}>
         {/* Confetti */}
         <View style={styles.confettiContainer}>
-          {confettiAnims.map((anim, idx) => (
-            <Animated.Text
+          {confettiEmojis.map((emoji, idx) => (
+            <View
               key={idx}
               style={[
-                styles.confetti,
+                styles.confettiSlot,
                 {
-                  opacity: anim.opacity,
-                  transform: [{ translateY: anim.y }, { translateX: anim.x }],
                   left: 40 + idx * 30,
+                  transform: [{ rotate: `${idx % 2 === 0 ? '-' : ''}${8 + idx * 4}deg` }],
                 },
               ]}
             >
-              {confettiEmojis[idx]}
-            </Animated.Text>
+              <Animated.Text entering={FadeInUp.delay(idx * 70).duration(500)} style={styles.confetti}>
+                {emoji}
+              </Animated.Text>
+            </View>
           ))}
         </View>
 
         {/* Match header */}
-        <Text style={styles.matchTitle}>C'est un match !</Text>
-        <Text style={styles.matchSubtitle}>
+        <Animated.Text entering={FadeInDown.delay(80).duration(280)} style={styles.matchEmoji}>💙</Animated.Text>
+        <Animated.Text entering={FadeInDown.delay(120).duration(280)} style={styles.matchTitle}>It's a match !</Animated.Text>
+        <Animated.Text entering={FadeInDown.delay(160).duration(280)} style={styles.matchSubtitle}>
           Vous avez des réactions très compatibles.
-        </Text>
+        </Animated.Text>
 
         {/* Avatars */}
-        <View style={styles.avatarsRow}>
+        <Animated.View entering={FadeInDown.delay(220).duration(320)} style={styles.avatarsRow}>
           <View style={styles.avatarCircle}>
-            <Text style={styles.avatarEmoji}>😊</Text>
+            <Text style={styles.avatarEmoji}>{userAvatar}</Text>
           </View>
           <View style={styles.heartBadge}>
             <Text style={styles.heartText}>💙</Text>
@@ -100,34 +66,31 @@ export function MatchModal({ match, onDismiss, onMessage }: MatchModalProps) {
           <View style={styles.avatarCircle}>
             <Text style={styles.avatarEmoji}>{match.avatar}</Text>
           </View>
-        </View>
+        </Animated.View>
+
+        {/* Score */}
+        <Animated.View entering={FadeInDown.delay(280).duration(320)} style={styles.scoreRow}>
+          <Text style={styles.scoreName}>{userName} × {match.name}</Text>
+          <Text style={styles.scoreValue}>{match.compatibilityScore}%</Text>
+        </Animated.View>
 
         {/* Compatibility reasons */}
         <View style={styles.reasonsContainer}>
           {match.compatibilityReasons.map((reason, idx) => (
-            <View key={idx} style={styles.reasonRow}>
-              <Text style={styles.reasonIcon}>
-                {REASON_ICONS[reason] ?? '✓'}
-              </Text>
+            <Animated.View key={idx} entering={FadeInDown.delay(340 + idx * 60).duration(280)} style={styles.reasonRow}>
+              <Text style={styles.reasonIcon}>✓</Text>
               <Text style={styles.reasonText}>{reason}</Text>
-            </View>
+            </Animated.View>
           ))}
         </View>
 
-        {/* Compatibility score */}
-        <View style={styles.scoreRow}>
-          <Text style={styles.scoreLabel}>Compatibilité</Text>
-          <Text style={styles.scoreValue}>{match.compatibilityScore}%</Text>
-        </View>
-
         {/* CTA buttons */}
-        <TouchableOpacity style={styles.primaryButton} onPress={onMessage}>
-          <Text style={styles.primaryButtonText}>Envoyer un message</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.secondaryButton} onPress={onDismiss}>
-          <Text style={styles.secondaryButtonText}>Voir le profil</Text>
-        </TouchableOpacity>
+        <Animated.View entering={FadeInDown.delay(520).duration(320)} style={styles.buttonWrap}>
+          <AppButton title="Envoyer un message 💬" onPress={onMessage} fullWidth />
+        </Animated.View>
+        <Animated.View entering={FadeInDown.delay(580).duration(320)} style={styles.buttonWrap}>
+          <AppButton title="Continuer à jouer" onPress={onDismiss} variant="secondary" fullWidth />
+        </Animated.View>
       </Animated.View>
     </Animated.View>
   );
@@ -161,15 +124,20 @@ const styles = StyleSheet.create({
     height: 60,
     overflow: 'hidden',
   },
-  confetti: {
+  confettiSlot: {
     position: 'absolute',
     top: 20,
+  },
+  confetti: {
     fontSize: 20,
+  },
+  matchEmoji: {
+    fontSize: 48,
+    marginBottom: Spacing.sm,
   },
   matchTitle: {
     ...Typography.title,
     color: Colors.text,
-    marginTop: Spacing.md,
     textAlign: 'center',
   },
   matchSubtitle: {
@@ -211,23 +179,6 @@ const styles = StyleSheet.create({
   heartText: {
     fontSize: 18,
   },
-  reasonsContainer: {
-    width: '100%',
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  reasonRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  reasonIcon: {
-    fontSize: 18,
-  },
-  reasonText: {
-    ...Typography.body,
-    color: Colors.text,
-  },
   scoreRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -237,9 +188,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
-  scoreLabel: {
+  scoreName: {
     ...Typography.bodyBold,
     color: Colors.accent,
   },
@@ -247,24 +198,26 @@ const styles = StyleSheet.create({
     ...Typography.h1,
     color: Colors.accent,
   },
-  primaryButton: {
-    backgroundColor: Colors.accent,
-    borderRadius: Radius.pill,
+  reasonsContainer: {
     width: '100%',
-    paddingVertical: Spacing.md,
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  reasonRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.sm,
+    gap: Spacing.sm,
   },
-  primaryButtonText: {
-    ...Typography.bodyBold,
-    color: Colors.white,
+  reasonIcon: {
+    fontSize: 14,
+    color: Colors.success,
+    fontWeight: '700',
   },
-  secondaryButton: {
-    paddingVertical: Spacing.sm,
-    alignItems: 'center',
-  },
-  secondaryButtonText: {
+  reasonText: {
     ...Typography.body,
-    color: Colors.textSecondary,
+    color: Colors.text,
+  },
+  buttonWrap: {
+    width: '100%',
   },
 });

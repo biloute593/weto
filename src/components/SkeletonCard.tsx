@@ -1,7 +1,6 @@
 import React, { useRef } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   Animated,
   Platform,
@@ -35,7 +34,7 @@ export function SkeletonCard() {
       <Animated.View style={[styles.line, styles.lineMid, { backgroundColor: bgColor }]} />
       <Animated.View style={[styles.line, styles.lineNarrow, { backgroundColor: bgColor }]} />
       <View style={styles.buttonsContainer}>
-        {[0, 1, 2, 3].map((i) => (
+        {[0, 1, 2].map((i) => (
           <Animated.View key={i} style={[styles.button, { backgroundColor: bgColor }]} />
         ))}
       </View>
