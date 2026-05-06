@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Svg, { Circle, Path } from 'react-native-svg';
 import { ProgressRing } from '../components/ProgressRing';
 
 const AVATARS = {
@@ -48,24 +49,24 @@ export function WebLandingScreen() {
           <View style={styles.brandWrap}>
             <Text style={styles.brand}>Weto</Text>
             <View style={styles.brandHeartBadge}>
-              <Ionicons name="heart" size={10} color="#FFFFFF" />
+              <BrandHeart />
             </View>
           </View>
           <Text style={styles.heroTitle}>L’app de rencontre qui{`\n`}te comprend vraiment.</Text>
 
           <View style={styles.featureList}>
             <FeatureRow
-              icon="sparkles-outline"
+              kind="profile"
               title="Des dilemmes, pas des profils."
               body="Réponds à des scénarios qui révèlent qui tu es vraiment."
             />
             <FeatureRow
-              icon="heart-outline"
+              kind="match"
               title="Des matchs basés sur la compatibilité."
               body="Weto analyse tes réactions pour te connecter aux bonnes personnes."
             />
             <FeatureRow
-              icon="paper-plane-outline"
+              kind="share"
               title="Partage et connecte-toi."
               body="Envoie tes dilemmes préférés en DM et lance des conversations naturelles."
             />
@@ -176,24 +177,82 @@ export function WebLandingScreen() {
 }
 
 function FeatureRow({
-  icon,
+  kind,
   title,
   body,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
+  kind: 'profile' | 'match' | 'share';
   title: string;
   body: string;
 }) {
   return (
     <View style={styles.featureRow}>
       <View style={styles.featureIconWrap}>
-        <Ionicons name={icon} size={25} color="#1F6FFF" />
+        <FeatureIcon kind={kind} />
       </View>
       <View style={styles.featureTextWrap}>
         <Text style={styles.featureTitle}>{title}</Text>
         <Text style={styles.featureBody}>{body}</Text>
       </View>
     </View>
+  );
+}
+
+function FeatureIcon({ kind }: { kind: 'profile' | 'match' | 'share' }) {
+  if (kind === 'profile') {
+    return (
+      <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+        <Path
+          d="M9.35 5.25c-.48-1.33-1.95-2.04-3.32-1.62-1.35.42-2.12 1.84-1.72 3.17.16.54.45.98.82 1.28-1.02.34-1.76 1.31-1.76 2.47 0 1.39 1.05 2.51 2.4 2.61-.42 1.41.32 2.83 1.72 3.25 1.37.41 2.84-.3 3.32-1.67V5.25Z"
+          stroke="#1F6FFF"
+          strokeWidth={1.7}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <Path
+          d="M14.65 5.25c.48-1.33 1.95-2.04 3.32-1.62 1.35.42 2.12 1.84 1.72 3.17-.16.54-.45.98-.82 1.28 1.02.34 1.76 1.31 1.76 2.47 0 1.39-1.05 2.51-2.4 2.61.42 1.41-.32 2.83-1.72 3.25-1.37.41-2.84-.3-3.32-1.67V5.25Z"
+          stroke="#1F6FFF"
+          strokeWidth={1.7}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <Path d="M9.55 8.45c-.83.2-1.42.97-1.42 1.88 0 .82.49 1.53 1.19 1.83" stroke="#1F6FFF" strokeWidth={1.7} strokeLinecap="round" />
+        <Path d="M14.45 8.45c.83.2 1.42.97 1.42 1.88 0 .82-.49 1.53-1.19 1.83" stroke="#1F6FFF" strokeWidth={1.7} strokeLinecap="round" />
+      </Svg>
+    );
+  }
+
+  if (kind === 'match') {
+    return (
+      <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+        <Path
+          d="M12 20c-5.38-3.81-8.25-6.84-8.25-10.63 0-2.67 2.05-4.74 4.63-4.74 1.67 0 3.2.83 4.12 2.25.92-1.42 2.45-2.25 4.12-2.25 2.58 0 4.63 2.07 4.63 4.74 0 3.79-2.87 6.82-8.25 10.63Z"
+          stroke="#1F6FFF"
+          strokeWidth={1.8}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
+    );
+  }
+
+  return (
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+      <Path d="M20.45 4 9.52 14.4" stroke="#1F6FFF" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M20.45 4 13.6 20l-4.08-5.6L4 10.85 20.45 4Z" stroke="#1F6FFF" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function BrandHeart() {
+  return (
+    <Svg width={21} height={18} viewBox="0 0 21 18" fill="none">
+      <Path
+        d="M10.5 16.55C4.16 12.29 1.38 9.56 1.38 6.12c0-2.39 1.84-4.3 4.2-4.3 1.77 0 3.38.99 4.92 3.02 1.54-2.03 3.15-3.02 4.92-3.02 2.36 0 4.2 1.91 4.2 4.3 0 3.44-2.78 6.17-9.12 10.43Z"
+        fill="#1F6FFF"
+      />
+      <Circle cx={14.9} cy={5.25} r={1.22} fill="#FFFFFF" opacity={0.92} />
+    </Svg>
   );
 }
 
@@ -445,8 +504,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: 28,
-    maxWidth: 1500,
+    gap: 34,
+    maxWidth: 1460,
     width: '100%',
     alignSelf: 'center',
   },
@@ -455,8 +514,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   heroColumn: {
-    width: 320,
-    paddingTop: 24,
+    width: 336,
+    paddingTop: 30,
   },
   heroColumnStacked: {
     width: '100%',
@@ -468,44 +527,42 @@ const styles = StyleSheet.create({
   },
   brandWrap: {
     alignSelf: 'flex-start',
-    marginBottom: 18,
+    marginBottom: 20,
   },
   brand: {
-    fontSize: 56,
-    lineHeight: 58,
+    fontSize: 60,
+    lineHeight: 62,
     fontWeight: '800',
     color: '#101010',
-    letterSpacing: -2.4,
+    letterSpacing: -2.7,
   },
   brandHeartBadge: {
     position: 'absolute',
-    top: 7,
-    right: -18,
-    width: 18,
+    top: 9,
+    right: -16,
+    width: 21,
     height: 18,
-    borderRadius: 9,
-    backgroundColor: '#1F6FFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   heroTitle: {
-    fontSize: 24,
-    lineHeight: 34,
+    fontSize: 23,
+    lineHeight: 35,
     fontWeight: '700',
     color: '#181818',
-    marginBottom: 44,
+    marginBottom: 46,
   },
   featureList: {
-    gap: 36,
+    gap: 38,
   },
   featureRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 14,
+    gap: 16,
   },
   featureIconWrap: {
-    width: 24,
-    paddingTop: 3,
+    width: 26,
+    paddingTop: 2,
     alignItems: 'center',
   },
   featureTextWrap: {
@@ -513,21 +570,21 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   featureTitle: {
-    fontSize: 17,
+    fontSize: 16,
     lineHeight: 24,
     fontWeight: '700',
     color: '#171717',
   },
   featureBody: {
     fontSize: 15,
-    lineHeight: 24,
+    lineHeight: 23,
     color: '#333333',
   },
   showcaseColumn: {
     flex: 1,
     minWidth: 0,
     alignItems: 'center',
-    gap: 30,
+    gap: 28,
   },
   showcaseColumnStacked: {
     width: '100%',
@@ -538,7 +595,7 @@ const styles = StyleSheet.create({
   phoneRowTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 24,
+    gap: 22,
   },
   phoneRowTopStacked: {
     flexDirection: 'column',
@@ -558,14 +615,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingHorizontal: 80,
-    marginBottom: 10,
+    paddingHorizontal: 68,
+    marginBottom: 12,
   },
   phoneRowBottom: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'center',
-    gap: 28,
+    gap: 24,
     width: '100%',
   },
   phoneColumnCompact: {
@@ -582,7 +639,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     fontWeight: '700',
     color: '#171717',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   sectionHeading: {
     fontSize: 18,
@@ -591,11 +648,11 @@ const styles = StyleSheet.create({
     color: '#171717',
   },
   phoneFrameOuter: {
-    width: 242,
-    height: 498,
-    borderRadius: 41,
+    width: 224,
+    height: 476,
+    borderRadius: 38,
     backgroundColor: '#131313',
-    padding: 6,
+    padding: 5,
     shadowColor: '#000000',
     shadowOpacity: 0.18,
     shadowRadius: 14,
@@ -603,11 +660,12 @@ const styles = StyleSheet.create({
     boxShadow: '0 10px 30px rgba(0,0,0,0.18)',
   },
   phoneFrameOuterCompact: {
-    width: 242,
+    width: 224,
+    height: 476,
   },
   phoneFrameInner: {
     flex: 1,
-    borderRadius: 35,
+    borderRadius: 33,
     backgroundColor: '#FFFFFF',
     overflow: 'hidden',
     position: 'relative',
@@ -616,9 +674,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     alignSelf: 'center',
-    width: 85,
-    height: 19,
-    borderRadius: 12,
+    width: 78,
+    height: 18,
+    borderRadius: 11,
     backgroundColor: '#111111',
     zIndex: 3,
   },
@@ -993,7 +1051,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     paddingVertical: 24,
     marginTop: 30,
-    maxWidth: 1500,
+    maxWidth: 1460,
     width: '100%',
     alignSelf: 'center',
     boxShadow: '0 10px 24px rgba(0,0,0,0.06)',
