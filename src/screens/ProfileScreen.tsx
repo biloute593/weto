@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,9 +12,9 @@ import {
 } from 'react-native';
 import { Colors, Spacing, Radius, Typography } from '../theme/colors';
 import { useWetoStore } from '../store/useWetoStore';
-import { TRAIT_LABELS, getDominantTrait } from '../utils';
+import { TRAIT_LABELS, getDominantTrait, getRecommendedScenarios, getScenarioSelectionHint } from '../utils';
 import { TraitKey } from '../types';
-import { PROFILE_COMPLETION_TARGET } from '../data/scenarios';
+import { PROFILE_COMPLETION_TARGET, SCENARIOS } from '../data/scenarios';
 
 const TRAIT_EMOJIS: Record<TraitKey, string> = {
   sociability: '🌍',
@@ -42,9 +42,27 @@ export function ProfileScreen() {
     userName,
     userAvatar,
     resetProgress,
+    answeredIds,
   } = useWetoStore();
 
   const [showCalc, setShowCalc] = useState(false);
+  const [showLecture, setShowLecture] = useState(false);
+
+  const signalRemainingCount = Math.max(0, PROFILE_COMPLETION_TARGET - answers.length);
+  const hasReliableSignal = answers.length >= PROFILE_COMPLETION_TARGET;
+  const recommendedScenarios = useMemo(
+    () => getRecommendedScenarios(userVector, answeredIds, SCENARIOS),
+    [userVector, answeredIds]
+  );
+  const nextCategories = useMemo(() => {
+    const cats = recommendedScenarios.map((s) => s.category);
+    return Array.from(new Set(cats)).slice(0, 3);
+  }, [recommendedScenarios]);
+  const currentScenario = SCENARIOS.find((s) => !answeredIds.has(s.id)) ?? null;
+  const selectionHint = useMemo(() => {
+    if (!currentScenario) return null;
+    return getScenarioSelectionHint(currentScenario, userVector, answeredIds, SCENARIOS);
+  }, [currentScenario, userVector, answeredIds]);
 
   const traitKeys = Object.keys(userVector) as TraitKey[];
   const dominant = getDominantTrait(userVector);
@@ -131,6 +149,59 @@ export function ProfileScreen() {
                 <Text style={styles.traitPct}>{Math.round(userVector[key])}%</Text>
               </View>
             ))}
+          </View>
+        )}
+
+        <View style={styles.bottomRow}>
+          <Text style={styles.bottomLabel}>Lecture en cours</Text>
+          <Switch
+            value={showLecture}
+            onValueChange={setShowLecture}
+            trackColor={{ false: Colors.border, true: Colors.accent }}
+            thumbColor={Colors.card}
+          />
+        </View>
+
+        {showLecture && (
+          <View style={styles.lectureBlock}>
+            <View style={styles.lecturePrimary}>
+              <Text style={styles.lectureTag}>Lecture en cours</Text>
+              <Text style={styles.lectureValue}>{dominant.label}</Text>
+              <Text style={styles.lectureHelper}>
+                {hasReliableSignal
+                  ? 'Le signal est assez net pour matcher. Continue pour affiner les nuances.'
+                  : `Encore ${signalRemainingCount} dilemme${signalRemainingCount > 1 ? 's' : ''} environ pour rendre la lecture du profil vraiment fiable.`}
+              </Text>
+            </View>
+            <View style={styles.lectureStats}>
+              <View style={styles.lectureStat}>
+                <Text style={styles.lectureStatNum}>{matches.length}</Text>
+                <Text style={styles.lectureStatLbl}>Matchs</Text>
+              </View>
+              <View style={styles.lectureStat}>
+                <Text style={styles.lectureStatNum}>{Math.round(userVector[dominant.key])}%</Text>
+                <Text style={styles.lectureStatLbl}>Trait fort</Text>
+              </View>
+            </View>
+            {nextCategories.length > 0 && (
+              <View style={styles.lectureCategories}>
+                <Text style={styles.lectureCatLabel}>A venir</Text>
+                <View style={styles.lectureCatPills}>
+                  {nextCategories.map((cat) => (
+                    <View key={cat} style={[styles.lectureCatPill, { backgroundColor: Colors[cat as keyof typeof Colors] && (Colors[cat as keyof typeof Colors] as any).bg }]}>
+                      <Text style={[styles.lectureCatText, { color: (Colors[cat as keyof typeof Colors] as any).text }]}>{cat}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+            {selectionHint && (
+              <View style={styles.lectureHint}>
+                <Text style={styles.lectureHintEyebrow}>Pourquoi ce dilemme</Text>
+                <Text style={styles.lectureHintTitle}>{selectionHint.title}</Text>
+                <Text style={styles.lectureHintBody}>{selectionHint.detail}</Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -294,5 +365,88 @@ const styles = StyleSheet.create({
     color: '#FF3B30',
     fontWeight: '600',
     fontSize: 14,
+  },
+  lectureBlock: {
+    backgroundColor: Colors.card,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    gap: Spacing.md,
+  },
+  lecturePrimary: {
+    gap: 4,
+  },
+  lectureTag: {
+    ...Typography.captionBold,
+    color: Colors.textSecondary,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  },
+  lectureValue: {
+    ...Typography.h2,
+    color: Colors.text,
+  },
+  lectureHelper: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    lineHeight: 18,
+  },
+  lectureStats: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  lectureStat: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    borderRadius: Radius.sm,
+    padding: Spacing.sm,
+    alignItems: 'center',
+    gap: 2,
+  },
+  lectureStatNum: {
+    ...Typography.h2,
+    color: Colors.text,
+  },
+  lectureStatLbl: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+  },
+  lectureCategories: {
+    gap: Spacing.xs,
+  },
+  lectureCatLabel: {
+    ...Typography.captionBold,
+    color: Colors.textSecondary,
+  },
+  lectureCatPills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+  },
+  lectureCatPill: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: Radius.pill,
+  },
+  lectureCatText: {
+    ...Typography.captionBold,
+  },
+  lectureHint: {
+    gap: 4,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    paddingTop: Spacing.sm,
+  },
+  lectureHintEyebrow: {
+    ...Typography.captionBold,
+    color: Colors.textSecondary,
+  },
+  lectureHintTitle: {
+    ...Typography.bodyBold,
+    color: Colors.text,
+  },
+  lectureHintBody: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    lineHeight: 18,
   },
 });

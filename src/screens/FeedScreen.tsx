@@ -111,54 +111,7 @@ export function FeedScreen() {
         </View>
       </View>
 
-      {!isImmersiveFeed && (
-        <>
-          <View style={styles.insightPanel}>
-            <View style={styles.insightPrimary}>
-              <Text style={styles.insightLabel}>Lecture en cours</Text>
-              <Text style={styles.insightValue}>{dominantTrait.label}</Text>
-              <Text style={styles.insightHelper}>
-                {hasReliableSignal
-                  ? 'Le signal est assez net pour matcher. Tu peux continuer a scroller pour affiner les nuances.'
-                  : `Encore ${signalRemainingCount} dilemme${signalRemainingCount > 1 ? 's' : ''} environ pour rendre la lecture du profil vraiment fiable.`}
-              </Text>
-            </View>
-            <View style={styles.insightStats}>
-              <View style={styles.statTile}>
-                <Text style={styles.statNumber}>{matches.length}</Text>
-                <Text style={styles.statLabel}>Matchs</Text>
-              </View>
-              <View style={styles.statTile}>
-                <Text style={styles.statNumber}>{Math.round(userVector[dominantTrait.key])}%</Text>
-                <Text style={styles.statLabel}>Trait fort</Text>
-              </View>
-            </View>
-          </View>
 
-          {nextCategories.length > 0 && !isComplete && (
-            <View style={styles.categoryStrip}>
-              <Text style={styles.categoryStripLabel}>A venir</Text>
-              <View style={styles.categoryPills}>
-                {nextCategories.map((category) => (
-                  <View key={category} style={[styles.categoryPill, { backgroundColor: Colors[category].bg }]}> 
-                    <Text style={[styles.categoryPillText, { color: Colors[category].text }]}>{category}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-
-          {selectionHint && !isComplete && (
-            <View style={styles.selectionCard}>
-              <View style={styles.selectionHeader}>
-                <Text style={styles.selectionEyebrow}>Pourquoi ce dilemme</Text>
-                <Text style={styles.selectionTitle}>{selectionHint.title}</Text>
-              </View>
-              <Text style={styles.selectionBody}>{selectionHint.detail}</Text>
-            </View>
-          )}
-        </>
-      )}
 
       {isImmersiveFeed && !isComplete && selectionHint && (
         <View style={styles.immersiveMetaWrap}>
