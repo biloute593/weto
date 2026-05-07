@@ -299,7 +299,7 @@ const CURATED_SCENARIOS: Scenario[] = [
     choices: [
       { label: "Je ris avec eux, ça détend l'atmosphère.", traitDeltas: { humor: 7, stability: 5 } },
       { label: 'Je défends mon plat avec passion.', traitDeltas: { conflict: 5, emotion: 4 } },
-      { label: "Je lui jette mon assiete sur ca gueu.", traitDeltas: { sociability: 4, conflict: -3 } },
+      { label: "Je lui jette mon assiete sur sa gueule.", traitDeltas: { sociability: 4, conflict: -3 } },
     ],
   },
   {
