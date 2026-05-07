@@ -151,23 +151,26 @@ export function ScenarioCard({ scenario, onShare, onSkip, immersive = false }: S
     triggerAdvance('answer');
   };
 
-  const catColors = Colors[scenario.category];
+  const CATEGORY_THEME: Record<string, { cardBg: string; glowA: string; glowB: string; border: string }> = {
+    Relationship: { cardBg: 'rgba(255,60,100,0.06)', glowA: '#FFD6E8', glowB: '#FFBAD0', border: 'rgba(255,60,100,0.13)' },
+    Social:       { cardBg: 'rgba(0,122,255,0.05)',  glowA: '#D9EBFF', glowB: '#FFF0D6', border: 'rgba(0,122,255,0.08)'   },
+    Absurd:       { cardBg: 'rgba(124,58,237,0.05)', glowA: '#EDE0FF', glowB: '#D8C5FF', border: 'rgba(124,58,237,0.08)'  },
+    Values:       { cardBg: 'rgba(5,150,105,0.05)',  glowA: '#D6F5E3', glowB: '#B8EED0', border: 'rgba(5,150,105,0.08)'   },
+  };
+  const theme = CATEGORY_THEME[scenario.category] ?? CATEGORY_THEME.Social;
 
   return (
     <GestureDetector gesture={panGesture}>
       <Animated.View
-        style={[styles.card, immersive && styles.cardImmersive, cardAnimatedStyle]}
+        style={[
+          styles.card,
+          immersive && styles.cardImmersive,
+          { backgroundColor: theme.cardBg, borderColor: theme.border },
+          cardAnimatedStyle,
+        ]}
       >
-        {immersive && <View style={styles.cardGlowPrimary} />}
-        {immersive && <View style={styles.cardGlowSecondary} />}
-
-        <View style={styles.cardHeader}>
-          <View style={[styles.badge, { backgroundColor: catColors.bg }]}> 
-            <Text style={[styles.badgeText, { color: catColors.text }]}> 
-              {scenario.category}
-            </Text>
-          </View>
-        </View>
+        {immersive && <View style={[styles.cardGlowPrimary, { backgroundColor: theme.glowA }]} />}
+        {immersive && <View style={[styles.cardGlowSecondary, { backgroundColor: theme.glowB }]} />}
 
         <View style={immersive ? styles.questionWrapImmersive : undefined}>
           <Text style={[styles.question, immersive && styles.questionImmersive]}>{scenario.question}</Text>
@@ -214,10 +217,7 @@ export function ScenarioCard({ scenario, onShare, onSkip, immersive = false }: S
             })}
           </View>
 
-          <TouchableOpacity style={[styles.shareButton, immersive && styles.shareButtonImmersive]} onPress={onShare}>
-            <Text style={styles.shareIcon}>✈</Text>
-            <Text style={styles.shareText}>Partager ce dilemme</Text>
-          </TouchableOpacity>
+
         </View>
       </Animated.View>
     </GestureDetector>

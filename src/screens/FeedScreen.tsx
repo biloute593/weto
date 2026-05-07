@@ -105,22 +105,12 @@ export function FeedScreen() {
               <Text style={styles.matchPillText}>{matches.length} match{matches.length > 1 ? 's' : ''}</Text>
             </View>
           )}
-          <View style={styles.statusPill}>
-            <Text style={styles.statusText}>{hasReliableSignal ? 'Matchs actifs' : 'Lecture en cours'}</Text>
-          </View>
         </View>
       </View>
 
 
 
-      {isImmersiveFeed && !isComplete && selectionHint && (
-        <View style={styles.immersiveMetaWrap}>
-          <View style={styles.immersiveFocusPill}>
-            <Text style={styles.immersiveFocusLabel}>{hasReliableSignal ? 'Signal fiable' : 'On affine'}</Text>
-            <Text style={styles.immersiveFocusValue}>{selectionHint.title}</Text>
-          </View>
-        </View>
-      )}
+
 
       {isComplete ? (
         <View style={styles.completeContainer}>
@@ -147,18 +137,7 @@ export function FeedScreen() {
         </View>
       )}
 
-      {isImmersiveFeed && !isComplete && nextCategories.length > 0 && (
-        <View style={styles.immersiveBottomRow}>
-          {nextCategories.slice(0, 2).map((category) => (
-            <View key={category} style={[styles.immersiveCategoryPill, { backgroundColor: Colors[category].bg }]}>
-              <Text style={[styles.immersiveCategoryText, { color: Colors[category].text }]}>{category}</Text>
-            </View>
-          ))}
-          <View style={styles.immersiveTraitPill}>
-            <Text style={styles.immersiveTraitText}>{Math.round(userVector[dominantTrait.key])}% {dominantTrait.label}</Text>
-          </View>
-        </View>
-      )}
+
 
       {pendingMatch && (
         <MatchModal
