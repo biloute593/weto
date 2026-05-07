@@ -151,11 +151,11 @@ export function ScenarioCard({ scenario, onShare, onSkip, immersive = false }: S
     triggerAdvance('answer');
   };
 
-  const CATEGORY_THEME: Record<string, { cardBg: string; glowA: string; glowB: string; border: string }> = {
-    Relationship: { cardBg: 'rgba(255,60,100,0.10)', glowA: '#FFD6E8', glowB: '#FFBAD0', border: 'rgba(255,60,100,0.22)' },
-    Social:       { cardBg: 'rgba(0,122,255,0.07)',  glowA: '#D9EBFF', glowB: '#FFF0D6', border: 'rgba(0,122,255,0.18)'   },
-    Absurd:       { cardBg: 'rgba(124,58,237,0.08)', glowA: '#EDE0FF', glowB: '#D8C5FF', border: 'rgba(124,58,237,0.20)'  },
-    Values:       { cardBg: 'rgba(5,150,105,0.08)',  glowA: '#D6F5E3', glowB: '#B8EED0', border: 'rgba(5,150,105,0.18)'   },
+  const CATEGORY_THEME: Record<string, { cardBg: string; glowA: string; glowB: string; border: string; tint: string }> = {
+    Relationship: { cardBg: '#0D0810', glowA: 'rgba(255,60,100,0.28)', glowB: 'rgba(200,20,80,0.18)', border: 'rgba(255,60,100,0.30)', tint: '#FF3C64' },
+    Social:       { cardBg: '#080C14', glowA: 'rgba(0,122,255,0.28)',  glowB: 'rgba(0,80,200,0.18)',  border: 'rgba(0,122,255,0.30)',   tint: '#007AFF' },
+    Absurd:       { cardBg: '#0A0810', glowA: 'rgba(124,58,237,0.28)', glowB: 'rgba(100,30,200,0.18)', border: 'rgba(124,58,237,0.30)', tint: '#7C3AED' },
+    Values:       { cardBg: '#080E0A', glowA: 'rgba(5,150,105,0.28)', glowB: 'rgba(0,120,80,0.18)',  border: 'rgba(5,150,105,0.30)',   tint: '#05966A' },
   };
   const theme = CATEGORY_THEME[scenario.category] ?? CATEGORY_THEME.Social;
 
@@ -169,8 +169,9 @@ export function ScenarioCard({ scenario, onShare, onSkip, immersive = false }: S
           cardAnimatedStyle,
         ]}
       >
-        {immersive && <View style={[styles.cardGlowPrimary, { backgroundColor: theme.glowA }]} />}
-        {immersive && <View style={[styles.cardGlowSecondary, { backgroundColor: theme.glowB }]} />}
+        {/* Glow orbs */}
+        <View style={[styles.cardGlowPrimary, { backgroundColor: theme.glowA }]} />
+        <View style={[styles.cardGlowSecondary, { backgroundColor: theme.glowB }]} />}
 
         <View style={immersive ? styles.questionWrapImmersive : undefined}>
           <Text style={[styles.question, immersive && styles.questionImmersive]}>{scenario.question}</Text>
@@ -179,7 +180,7 @@ export function ScenarioCard({ scenario, onShare, onSkip, immersive = false }: S
         <View style={immersive ? styles.footerImmersive : undefined}>
           {immersive && (
             <TouchableOpacity style={styles.swipeHintRow} activeOpacity={0.78} onPress={handleSkip}>
-              <Text style={styles.swipeHintArrow}>↑</Text>
+              <Text style={[styles.swipeHintArrow, { color: theme.tint }]}>↑</Text>
               <Text style={styles.swipeHintText}>Swipe up pour passer</Text>
             </TouchableOpacity>
           )}
@@ -194,7 +195,7 @@ export function ScenarioCard({ scenario, onShare, onSkip, immersive = false }: S
                     style={[
                       styles.choiceButton,
                       immersive && styles.choiceButtonImmersive,
-                      isSelected && styles.choiceButtonSelected,
+                      isSelected && [styles.choiceButtonSelected, { backgroundColor: theme.tint, borderColor: theme.tint }],
                       isOther && styles.choiceButtonDimmed,
                     ]}
                     onPress={() => handleChoice(idx)}
@@ -217,6 +218,10 @@ export function ScenarioCard({ scenario, onShare, onSkip, immersive = false }: S
             })}
           </View>
 
+          <TouchableOpacity style={[styles.shareButton, immersive && styles.shareButtonImmersive]} onPress={onShare} activeOpacity={0.7}>
+            <Text style={[styles.shareIcon, { color: theme.tint }]}>↗</Text>
+            <Text style={styles.shareText}>Partager</Text>
+          </TouchableOpacity>
 
         </View>
       </Animated.View>
@@ -226,14 +231,15 @@ export function ScenarioCard({ scenario, onShare, onSkip, immersive = false }: S
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.card,
+    backgroundColor: '#0B0B18',
     borderRadius: Radius.lg,
     padding: Spacing.lg,
     marginHorizontal: Spacing.md,
     marginVertical: Spacing.sm,
     flex: 1,
     borderWidth: 1.5,
-    borderColor: Colors.border,
+    borderColor: 'rgba(255,255,255,0.08)',
+    overflow: 'hidden',
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 16 },
       android: { elevation: 4 },
@@ -286,7 +292,7 @@ const styles = StyleSheet.create({
   },
   question: {
     ...Typography.h1,
-    color: Colors.text,
+    color: '#F0F0FF',
     marginBottom: Spacing.xl,
     lineHeight: 32,
   },
@@ -308,16 +314,16 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   choiceButton: {
-    backgroundColor: Colors.buttonNeutral,
+    backgroundColor: 'rgba(255,255,255,0.06)',
     borderRadius: Radius.pill,
     paddingVertical: 18,
     paddingHorizontal: Spacing.lg,
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: Colors.border,
+    borderColor: 'rgba(255,255,255,0.15)',
   },
   choiceButtonImmersive: {
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     paddingVertical: 20,
   },
   choiceButtonSelected: {
@@ -329,7 +335,7 @@ const styles = StyleSheet.create({
   },
   choiceText: {
     ...Typography.body,
-    color: Colors.text,
+    color: '#E8E8F8',
     textAlign: 'center',
   },
   choiceTextImmersive: {
@@ -341,22 +347,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   choiceTextDimmed: {
-    color: Colors.textMuted,
+    color: 'rgba(200,200,220,0.35)',
   },
   shareButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 40,
+    marginTop: Spacing.lg,
     gap: Spacing.xs,
   },
   shareIcon: {
-    fontSize: 18,
-    color: Colors.textMuted,
+    fontSize: 16,
   },
   shareText: {
-    ...Typography.caption,
-    color: Colors.textMuted,
+    ...Typography.captionBold,
+    color: 'rgba(200,200,220,0.5)',
   },
   footerImmersive: {
     gap: Spacing.md,
@@ -378,6 +383,6 @@ const styles = StyleSheet.create({
   },
   swipeHintText: {
     ...Typography.captionBold,
-    color: Colors.textSecondary,
+    color: 'rgba(200,200,220,0.6)',
   },
 });

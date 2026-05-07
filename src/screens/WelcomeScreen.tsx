@@ -14,7 +14,13 @@ import { useWetoStore } from '../store/useWetoStore';
 
 const AVATAR_OPTIONS = ['🫶', '😌', '🦊', '🌞', '🧠', '✨', '🎧', '🌊'];
 const CURRENT_YEAR = new Date().getFullYear();
-type Step = 'pseudo' | 'birth' | 'location';
+const GENDER_OPTIONS = ['Homme', 'Femme', 'Autre'];
+const SEEKING_OPTIONS = [
+  { label: 'Relation sérieuse', emoji: '❤️' },
+  { label: 'Amitié', emoji: '🤝' },
+  { label: 'Autres', emoji: '✨' },
+];
+type Step = 'pseudo' | 'birth' | 'profile' | 'location';
 
 export function WelcomeScreen() {
   const { completeOnboarding } = useWetoStore();
@@ -22,6 +28,8 @@ export function WelcomeScreen() {
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState('🫶');
   const [birthYear, setBirthYear] = useState('');
+  const [gender, setGender] = useState('');
+  const [seeking, setSeeking] = useState('');  
   const [locationGranted, setLocationGranted] = useState(false);
 
   const trimmedName = name.trim();
@@ -45,7 +53,7 @@ export function WelcomeScreen() {
   };
 
   const handleEnter = () => {
-    completeOnboarding(trimmedName, avatar, birthYear);
+    completeOnboarding(trimmedName, avatar, birthYear, gender, seeking);
   };
 
   // ── STEP 1: Pseudo ─────────────────────────────────────────────
@@ -59,7 +67,7 @@ export function WelcomeScreen() {
           </View>
 
           <Animated.View entering={FadeInDown.delay(100).duration(300)} style={styles.card}>
-            <Text style={styles.stepLabel}>Étape 1 / 3</Text>
+            <Text style={styles.stepLabel}>Étape 1 / 4</Text>
             <Text style={styles.cardTitle}>Ton pseudo</Text>
             <Text style={styles.cardSub}>
               Choisis un nom et un avatar. Ton vrai profil se construit via tes réponses.
@@ -118,7 +126,7 @@ export function WelcomeScreen() {
           </View>
 
           <Animated.View entering={FadeInDown.delay(80).duration(300)} style={styles.card}>
-            <Text style={styles.stepLabel}>Étape 2 / 3</Text>
+            <Text style={styles.stepLabel}>Étape 2 / 4</Text>
             <Text style={styles.cardTitle}>Ton année de naissance</Text>
             <Text style={styles.cardSub}>
               Pour calibrer les compatibilités. Pas affiché publiquement.
@@ -140,7 +148,7 @@ export function WelcomeScreen() {
 
             <TouchableOpacity
               style={[styles.btn, !birthYearValid && styles.btnDisabled]}
-              onPress={() => birthYearValid && setStep('location')}
+              onPress={() => birthYearValid && setStep('profile')}
               activeOpacity={0.85}
             >
               <Text style={styles.btnText}>Continuer →</Text>
@@ -155,7 +163,67 @@ export function WelcomeScreen() {
     );
   }
 
-  // ── STEP 3: Localisation ────────────────────────────────────────
+  // ── STEP 3: Genre + Recherche ─────────────────────────────────
+  if (step === 'profile') {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Animated.View entering={FadeIn.duration(300)} style={styles.screen}>
+          <View style={styles.topSection}>
+            <Text style={styles.logo}>WETO</Text>
+            <Text style={styles.tagline}>On y est presque, {trimmedName}.</Text>
+          </View>
+
+          <Animated.View entering={FadeInDown.delay(80).duration(300)} style={styles.card}>
+            <Text style={styles.stepLabel}>Étape 3 / 4</Text>
+            <Text style={styles.cardTitle}>Ton profil de base</Text>
+            <Text style={styles.cardSub}>Pour mieux calibrer les compatibilités.</Text>
+
+            <Text style={styles.sectionLabel}>Je suis</Text>
+            <View style={styles.pillRow}>
+              {GENDER_OPTIONS.map((g) => (
+                <TouchableOpacity
+                  key={g}
+                  style={[styles.pill, gender === g && styles.pillSelected]}
+                  onPress={() => setGender(g)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[styles.pillText, gender === g && styles.pillTextSelected]}>{g}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.sectionLabel}>Je cherche</Text>
+            <View style={styles.pillRow}>
+              {SEEKING_OPTIONS.map((s) => (
+                <TouchableOpacity
+                  key={s.label}
+                  style={[styles.pill, seeking === s.label && styles.pillSelected]}
+                  onPress={() => setSeeking(s.label)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[styles.pillText, seeking === s.label && styles.pillTextSelected]}>{s.emoji} {s.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={[styles.btn, (!gender || !seeking) && styles.btnDisabled]}
+              onPress={() => gender && seeking && setStep('location')}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.btnText}>Continuer →</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => setStep('birth')} style={styles.backBtn}>
+              <Text style={styles.backBtnText}>← Retour</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </Animated.View>
+      </SafeAreaView>
+    );
+  }
+
+  // ── STEP 4: Localisation ────────────────────────────────────────
   return (
     <SafeAreaView style={styles.container}>
       <Animated.View entering={FadeIn.duration(300)} style={styles.screen}>
@@ -165,7 +233,7 @@ export function WelcomeScreen() {
         </View>
 
         <Animated.View entering={FadeInDown.delay(80).duration(300)} style={styles.card}>
-          <Text style={styles.stepLabel}>Étape 3 / 3</Text>
+          <Text style={styles.stepLabel}>Étape 4 / 4</Text>
           <Text style={styles.cardTitle}>Activer la localisation</Text>
           <Text style={styles.cardSub}>
             Pour trouver des matchs près de toi. Tu peux refuser et activer plus tard.
@@ -191,7 +259,7 @@ export function WelcomeScreen() {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => setStep('birth')} style={styles.backBtn}>
+          <TouchableOpacity onPress={() => setStep('profile')} style={styles.backBtn}>
             <Text style={styles.backBtnText}>← Retour</Text>
           </TouchableOpacity>
         </Animated.View>
@@ -355,5 +423,37 @@ const styles = StyleSheet.create({
     color: '#4cd964',
     fontWeight: '700',
     fontSize: 15,
+  },
+  sectionLabel: {
+    ...Typography.captionBold,
+    color: Colors.textSecondary,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  },
+  pillRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  pill: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.background,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+  },
+  pillSelected: {
+    backgroundColor: Colors.accentLight,
+    borderColor: Colors.accent,
+  },
+  pillText: {
+    ...Typography.caption,
+    color: Colors.text,
+    fontWeight: '500',
+  },
+  pillTextSelected: {
+    color: Colors.accent,
+    fontWeight: '700',
   },
 });

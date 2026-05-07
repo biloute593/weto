@@ -106,10 +106,12 @@ interface WetoState {
 
   // Extra info
   birthYear: string;
+  gender: string;
+  seeking: string;
 
   // Actions
   updateProfile: (name: string, avatar: string) => void;
-  completeOnboarding: (name: string, avatar: string, birthYear: string) => void;
+  completeOnboarding: (name: string, avatar: string, birthYear: string, gender: string, seeking: string) => void;
   startAnswer: () => void;
   submitAnswer: (scenarioId: string, choiceIndex: number) => void;
   nextScenario: (skippedScenarioId?: string) => void;
@@ -127,6 +129,8 @@ export const useWetoStore = create<WetoState>()(
       userName: 'Moi',
       userAvatar: '👤',
       birthYear: '',
+      gender: '',
+      seeking: '',
       userVector: { ...INITIAL_VECTOR },
       hasCompletedOnboarding: false,
       currentIndex: 0,
@@ -141,11 +145,13 @@ export const useWetoStore = create<WetoState>()(
 
       updateProfile: (name, avatar) => set({ userName: name, userAvatar: avatar }),
 
-      completeOnboarding: (name, avatar, birthYear) =>
+      completeOnboarding: (name, avatar, birthYear, gender, seeking) =>
         set({
           userName: name,
           userAvatar: avatar,
           birthYear: birthYear,
+          gender: gender,
+          seeking: seeking,
           hasCompletedOnboarding: true,
         }),
 
