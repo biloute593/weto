@@ -1,4 +1,4 @@
-import { Scenario, ScenarioCategory, TraitDelta } from '../types';
+import { Scenario, ScenarioCategory, ScenarioLevel, TraitDelta } from '../types';
 
 const CURATED_SCENARIOS: Scenario[] = [
   // ═══════════════════════════════════════════════════════════════════
@@ -299,18 +299,18 @@ const CURATED_SCENARIOS: Scenario[] = [
     choices: [
       { label: "Je ris avec eux, ça détend l'atmosphère.", traitDeltas: { humor: 7, stability: 5 } },
       { label: 'Je défends mon plat avec passion.', traitDeltas: { conflict: 5, emotion: 4 } },
-      { label: "Je change de sujet pour sauver l'ambiance.", traitDeltas: { sociability: 4, conflict: -3 } },
+      { label: "Je lui jette mon assiete sur ca gueu.", traitDeltas: { sociability: 4, conflict: -3 } },
     ],
   },
   {
     id: 'rel_03',
     category: 'Relationship',
     question:
-      "Tu réalises que tu as envoyé un message privé en mode public. Tu ?",
+      "Tu réalises que tu as envoyé une video privé en mode public. Tu ?",
     choices: [
       { label: "Je le supprime vite et fais semblant que rien n'est arrivé.", traitDeltas: { stability: 3, emotion: 4 } },
       { label: "Je l'assume avec humour.", traitDeltas: { humor: 8, stability: 5 } },
-      { label: "Je disparais d'internet pendant une semaine.", traitDeltas: { emotion: 7, sociability: -5 } },
+      { label: "Je disparais d'internet pour toujours.", traitDeltas: { emotion: 7, sociability: -5 } },
     ],
   },
   {
@@ -378,6 +378,18 @@ type ChoiceSet = {
 type GeneratedPackConfig = {
   category: ScenarioCategory;
   prefix: string;
+  level?: ScenarioLevel;
+  stems: string[];
+  twists: string[];
+  endings: string[];
+  choiceSets: ChoiceSet[];
+  target: number;
+};
+
+type MultiCategoryGeneratedPackConfig = {
+  categories: ScenarioCategory[];
+  prefix: string;
+  level: ScenarioLevel;
   stems: string[];
   twists: string[];
   endings: string[];
@@ -389,11 +401,13 @@ function makeScenario(
   id: string,
   category: ScenarioCategory,
   question: string,
-  choiceSet: ChoiceSet
+  choiceSet: ChoiceSet,
+  level: ScenarioLevel = 'standard'
 ): Scenario {
   return {
     id,
     category,
+    level,
     question,
     choices: choiceSet.labels.map((label, index) => ({
       label,
@@ -405,6 +419,7 @@ function makeScenario(
 function buildGeneratedPack({
   category,
   prefix,
+  level = 'standard',
   stems,
   twists,
   endings,
@@ -432,7 +447,56 @@ function buildGeneratedPack({
           `${prefix}_${String(scenarios.length + 1).padStart(3, '0')}`,
           category,
           question,
-          choiceSet
+          choiceSet,
+          level
+        )
+      );
+
+      comboIndex += 1;
+
+      if (scenarios.length >= target) {
+        return scenarios;
+      }
+    }
+  }
+
+  return scenarios;
+}
+
+function buildMultiCategoryGeneratedPack({
+  categories,
+  prefix,
+  level,
+  stems,
+  twists,
+  endings,
+  choiceSets,
+  target,
+}: MultiCategoryGeneratedPackConfig): Scenario[] {
+  const scenarios: Scenario[] = [];
+  const seenQuestions = new Set<string>();
+  let comboIndex = 0;
+
+  for (const stem of stems) {
+    for (const twist of twists) {
+      const ending = endings[comboIndex % endings.length];
+      const category = categories[comboIndex % categories.length];
+      const question = `${stem} ${twist}. ${ending}`;
+
+      if (seenQuestions.has(question)) {
+        comboIndex += 1;
+        continue;
+      }
+
+      seenQuestions.add(question);
+      const choiceSet = choiceSets[comboIndex % choiceSets.length];
+      scenarios.push(
+        makeScenario(
+          `${prefix}_${String(scenarios.length + 1).padStart(3, '0')}`,
+          category,
+          question,
+          choiceSet,
+          level
         )
       );
 
@@ -809,10 +873,11 @@ const ABSURD_CHOICES: ChoiceSet[] = [
   },
 ];
 
-const GENERATED_SCENARIOS: Scenario[] = [
+const STANDARD_GENERATED_SCENARIOS: Scenario[] = [
   ...buildGeneratedPack({
     category: 'Social',
     prefix: 'socx',
+    level: 'standard',
     stems: SOCIAL_STEMS,
     twists: SOCIAL_TWISTS,
     endings: SOCIAL_ENDINGS,
@@ -822,6 +887,7 @@ const GENERATED_SCENARIOS: Scenario[] = [
   ...buildGeneratedPack({
     category: 'Values',
     prefix: 'valx',
+    level: 'standard',
     stems: VALUES_STEMS,
     twists: VALUES_TWISTS,
     endings: VALUES_ENDINGS,
@@ -831,6 +897,7 @@ const GENERATED_SCENARIOS: Scenario[] = [
   ...buildGeneratedPack({
     category: 'Relationship',
     prefix: 'relx',
+    level: 'standard',
     stems: RELATIONSHIP_STEMS,
     twists: RELATIONSHIP_TWISTS,
     endings: RELATIONSHIP_ENDINGS,
@@ -840,6 +907,7 @@ const GENERATED_SCENARIOS: Scenario[] = [
   ...buildGeneratedPack({
     category: 'Absurd',
     prefix: 'absx',
+    level: 'standard',
     stems: ABSURD_STEMS,
     twists: ABSURD_TWISTS,
     endings: ABSURD_ENDINGS,
@@ -848,9 +916,240 @@ const GENERATED_SCENARIOS: Scenario[] = [
   }),
 ];
 
+const STANDARD_SCENARIOS: Scenario[] = [
+  ...CURATED_SCENARIOS.map((scenario) => ({ ...scenario, level: 'standard' as const })),
+  ...STANDARD_GENERATED_SCENARIOS,
+];
+
+const INTENSE_STEMS = [
+  'Une personne avec qui l attirance est forte te demande ce qui t attire d abord dans l intimite',
+  'Au debut d une relation, on te propose de parler franchement de tes limites intimes',
+  'Quelqu un qui te plait beaucoup te demande ce que tu reveles rarement sur ton desir',
+  'Pendant une nuit tres complice, la conversation glisse vers vos fantasmes respectifs',
+  'Une personne avec qui le flirt devient serieux veut savoir ce qui te met vraiment en confiance',
+  'Apres une tension tres palpable entre vous, on te demande ce que tu voudrais explorer un jour',
+  'Quelqu un te propose un jeu de questions tres personnelles pour tester votre compatibilite intime',
+  'Lors d un echange nocturne tres honnete, la personne en face veut savoir ce qui te fait reculer net',
+  'Un crush tres assume te demande ce qui compte le plus pour toi quand le desir monte',
+  'Tu sens qu une relation peut devenir tres charnelle et on te demande comment tu poses le cadre',
+  'Quelqu un te dit vouloir connaitre ta part la plus tendre et la plus sensuelle',
+  'Dans un moment de confiance rare, on te demande a quel point tu aimes garder du mystere',
+];
+
+const INTENSE_TWISTS = [
+  'alors que la confiance est la mais pas totalement installee',
+  'et la reponse peut clairement changer la dynamique entre vous',
+  'au moment ou la tension est deja tres palpable',
+  'sans savoir si l autre cherche de la profondeur ou juste du frisson',
+  'et tu sens que l honnetete va creer soit un vrai lien soit un grand malaise',
+  'alors que vous n avez jamais ete aussi proches d un basculement',
+  'dans un cadre ou personne ne peut se cacher derriere l humour trop longtemps',
+  'et chacun attend que l autre ose en premier',
+  'au moment ou tu pourrais choisir la prudence ou la verite',
+  'et la conversation devient soudain beaucoup plus adulte que prevu',
+];
+
+const INTENSE_ENDINGS = [
+  'Tu reponds quoi ?',
+  'Tu poses quoi sur la table ?',
+  'Tu reveles quoi vraiment ?',
+  'Tu t ouvres jusqu ou ?',
+  'Tu prends quelle posture ?',
+];
+
+const INTENSE_CHOICES: ChoiceSet[] = [
+  {
+    labels: [
+      'Je reponds franchement sur mes envies, mes limites et ce qui me rassure.',
+      'Je revele une partie seulement pour garder du mystere et voir comment l autre accueille ca.',
+      'Je detourne legerement pour garder la tension sans tout donner tout de suite.',
+    ],
+    deltas: [
+      { emotion: 5, stability: 4, conflict: 2 },
+      { stability: 4, risk: 3, emotion: 2 },
+      { humor: 5, risk: 4, sociability: 2 },
+    ],
+  },
+  {
+    labels: [
+      'Je parle d abord de confiance, de respect et de consentement avant le reste.',
+      'Je dis ce qui m attire le plus, sans entrer dans des details trop crus.',
+      'Je prefere tester la complicite dans le jeu avant de mettre des mots trop nets.',
+    ],
+    deltas: [
+      { stability: 6, emotion: 3, conflict: 1 },
+      { emotion: 5, risk: 4, sociability: 2 },
+      { humor: 4, sociability: 4, risk: 3 },
+    ],
+  },
+  {
+    labels: [
+      'J ose avouer un fantasme soft si l echange reste elegant et reciproque.',
+      'Je demande a l autre de commencer, pour sentir son niveau d ouverture.',
+      'Je garde mes cartes et j observe si la personne sait creer un vrai espace sur.',
+    ],
+    deltas: [
+      { risk: 5, emotion: 4, humor: 1 },
+      { sociability: 4, stability: 3, emotion: 2 },
+      { stability: 6, conflict: 1, emotion: 1 },
+    ],
+  },
+  {
+    labels: [
+      'Je pose clairement mes non negociables et ce qui me fait vraiment vibrer.',
+      'Je parle avec douceur de mes curiosites sans me mettre a nu d un coup.',
+      'Je garde une part d enigme pour laisser le desir travailler un peu.',
+    ],
+    deltas: [
+      { conflict: 4, stability: 5, emotion: 3 },
+      { emotion: 4, stability: 4, sociability: 3 },
+      { humor: 3, risk: 5, stability: 2 },
+    ],
+  },
+];
+
+const FIRE_STEMS = [
+  'Une personne avec qui la tension est quasiment incontrôlable te demande ton fantasme le plus inavoue',
+  'On te propose un week-end hors cadre pour explorer vos desirs sans faux-semblants',
+  'Quelqu un te dit vouloir entendre la version la plus brute de ce qui t attire vraiment',
+  'Dans un echange ou plus rien n est tiede, on te demande jusqu ou tu aimes perdre le controle',
+  'La personne qui te trouble le plus veut savoir ce que tu n as encore jamais ose vivre',
+  'Au cœur d une attirance presque dangereuse, on te propose un pacte de franchise totale sur vos envies',
+  'Quelqu un te regarde droit dans les yeux et te demande ce que tu caches derriere ton apparente maitrise',
+  'Une discussion nocturne devient un duel de confessions sur vos zones les plus intenses',
+  'On te propose de nommer la frontiere entre ce qui t excite et ce qui te depasse',
+  'Une personne tres assumee te demande ce qui pourrait te faire totalement craquer',
+  'Dans un moment ou tout peut deraper ou se sublimer, on te demande ce que tu veux vraiment',
+  'Quelqu un veut savoir si tu preferes le vertige, la tendresse, ou la folie quand tout s enflamme',
+];
+
+const FIRE_TWISTS = [
+  'alors qu il n y a plus vraiment de place pour les reponses tiedes',
+  'et ton silence serait presque une reponse en soi',
+  'au moment ou vous savez tous les deux que ca peut devenir tres reel',
+  'sans possibilite de te refugier derriere un personnage lisse',
+  'et la verite peut autant rapprocher que faire exploser la scene',
+  'alors que la confiance est intense mais encore jeune',
+  'et tu sens qu une confession peut redefinir tout le lien',
+  'au moment ou le desir et le risque emotionnel montent ensemble',
+  'dans une ambiance ou la pudeur commence clairement a ceder',
+  'et tu sais qu il faudra assumer ce que tu ouvres',
+];
+
+const FIRE_ENDINGS = [
+  'Tu l assumes comment ?',
+  'Tu vas jusqu ou ?',
+  'Tu dis quoi sans filtre ?',
+  'Tu ouvres quelle porte ?',
+  'Tu montres quelle version de toi ?',
+];
+
+const FIRE_CHOICES: ChoiceSet[] = [
+  {
+    labels: [
+      'Je dis la verite nue, mais toujours avec le cadre du consentement et du respect.',
+      'J avoue une envie forte sans tout devoiler, juste assez pour faire monter la tension.',
+      'Je reponds par une question encore plus troublante pour renverser la scene.',
+    ],
+    deltas: [
+      { emotion: 6, conflict: 3, stability: 3 },
+      { risk: 6, emotion: 4, humor: 1 },
+      { humor: 5, risk: 5, sociability: 3 },
+    ],
+  },
+  {
+    labels: [
+      'Je vais au bout de ma sincerite sur ce qui me consume et ce qui me bloque.',
+      'Je garde le cap sur mes limites, meme si l energie pousse a tout accelerer.',
+      'Je joue avec le feu verbalement pour voir si l autre sait vraiment tenir l intensite.',
+    ],
+    deltas: [
+      { emotion: 7, conflict: 2, risk: 3 },
+      { stability: 6, conflict: 3, emotion: 2 },
+      { humor: 4, risk: 7, sociability: 2 },
+    ],
+  },
+  {
+    labels: [
+      'J ose nommer ce que je n ai jamais ose dire, si l echange reste reciproque.',
+      'Je transforme l aveu en terrain de jeu mental avant toute vraie bascule.',
+      'Je coupe court si je sens que l intensite n est pas aussi mature qu elle en a l air.',
+    ],
+    deltas: [
+      { risk: 6, emotion: 5, sociability: 2 },
+      { humor: 5, risk: 5, emotion: 3 },
+      { stability: 7, conflict: 4, emotion: 1 },
+    ],
+  },
+  {
+    labels: [
+      'Je choisis la version la plus audacieuse de moi, sans trahir ma securite.',
+      'Je ralentis volontairement pour savourer la montee plutot que la brulure.',
+      'Je teste si la personne veut juste du choc ou une vraie profondeur dans le feu.',
+    ],
+    deltas: [
+      { risk: 7, stability: 2, emotion: 4 },
+      { stability: 6, emotion: 3, risk: 1 },
+      { conflict: 4, stability: 4, sociability: 2 },
+    ],
+  },
+];
+
+const INTENSE_SCENARIOS = buildMultiCategoryGeneratedPack({
+  categories: ['Relationship', 'Values', 'Social', 'Absurd'],
+  prefix: 'intx',
+  level: 'intense',
+  stems: INTENSE_STEMS,
+  twists: INTENSE_TWISTS,
+  endings: INTENSE_ENDINGS,
+  choiceSets: INTENSE_CHOICES,
+  target: 100,
+});
+
+const FIRE_SCENARIOS = buildMultiCategoryGeneratedPack({
+  categories: ['Relationship', 'Values', 'Social', 'Absurd'],
+  prefix: 'firex',
+  level: 'fire',
+  stems: FIRE_STEMS,
+  twists: FIRE_TWISTS,
+  endings: FIRE_ENDINGS,
+  choiceSets: FIRE_CHOICES,
+  target: 100,
+});
+
+const ALL_SCENARIOS: Scenario[] = [
+  ...STANDARD_SCENARIOS,
+  ...INTENSE_SCENARIOS,
+  ...FIRE_SCENARIOS,
+];
+
 export const PROFILE_COMPLETION_TARGET = 20;
 
+export const SCENARIO_LEVELS: ScenarioLevel[] = ['standard', 'intense', 'fire'];
+
+export const SCENARIO_LEVEL_META: Record<ScenarioLevel, { label: string; accent: string; minAge?: number }> = {
+  standard: { label: 'Standard', accent: '#B8C6FF' },
+  intense: { label: 'Intense', accent: '#FF5F7A', minAge: 18 },
+  fire: { label: 'Fire', accent: '#FF8A00', minAge: 18 },
+};
+
+export function isAdultBirthYear(birthYear: string): boolean {
+  const parsed = Number.parseInt(birthYear, 10);
+  if (!Number.isFinite(parsed)) return false;
+  return new Date().getFullYear() - parsed >= 18;
+}
+
+export function getAllowedScenarioLevels(birthYear: string): ScenarioLevel[] {
+  return isAdultBirthYear(birthYear) ? SCENARIO_LEVELS : ['standard'];
+}
+
+export function getScenariosForLevel(
+  level: ScenarioLevel,
+  scenarios: Scenario[] = ALL_SCENARIOS
+): Scenario[] {
+  return scenarios.filter((scenario) => (scenario.level ?? 'standard') === level);
+}
+
 export const SCENARIOS: Scenario[] = [
-  ...CURATED_SCENARIOS,
-  ...GENERATED_SCENARIOS,
+  ...ALL_SCENARIOS,
 ];

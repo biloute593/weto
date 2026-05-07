@@ -19,6 +19,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector, MouseButton } from 'react-native-gesture-handler';
 import { Scenario } from '../types';
+import { SCENARIO_LEVEL_META } from '../data/scenarios';
 import { Colors, Spacing, Radius, Typography } from '../theme/colors';
 import { useWetoStore } from '../store/useWetoStore';
 
@@ -157,7 +158,14 @@ export function ScenarioCard({ scenario, onShare, onSkip, immersive = false }: S
     Absurd:       { cardBg: '#0A0810', glowA: 'rgba(124,58,237,0.28)', glowB: 'rgba(100,30,200,0.18)', border: 'rgba(124,58,237,0.30)', tint: '#7C3AED' },
     Values:       { cardBg: '#080E0A', glowA: 'rgba(5,150,105,0.28)', glowB: 'rgba(0,120,80,0.18)',  border: 'rgba(5,150,105,0.30)',   tint: '#05966A' },
   };
+  const LEVEL_THEME: Record<string, { badgeBg: string; badgeBorder: string; badgeText: string }> = {
+    standard: { badgeBg: 'rgba(184,198,255,0.12)', badgeBorder: 'rgba(184,198,255,0.34)', badgeText: '#D9E1FF' },
+    intense: { badgeBg: 'rgba(255,95,122,0.14)', badgeBorder: 'rgba(255,95,122,0.38)', badgeText: '#FFD2DA' },
+    fire: { badgeBg: 'rgba(255,138,0,0.16)', badgeBorder: 'rgba(255,138,0,0.42)', badgeText: '#FFE1B8' },
+  };
   const theme = CATEGORY_THEME[scenario.category] ?? CATEGORY_THEME.Social;
+  const level = scenario.level ?? 'standard';
+  const levelTheme = LEVEL_THEME[level] ?? LEVEL_THEME.standard;
 
   return (
     <GestureDetector gesture={panGesture}>
@@ -171,7 +179,18 @@ export function ScenarioCard({ scenario, onShare, onSkip, immersive = false }: S
       >
         {/* Glow orbs */}
         <View style={[styles.cardGlowPrimary, { backgroundColor: theme.glowA }]} />
-        <View style={[styles.cardGlowSecondary, { backgroundColor: theme.glowB }]} />}
+        <View style={[styles.cardGlowSecondary, { backgroundColor: theme.glowB }]} />
+
+        <View style={styles.cardHeader}>
+          <View style={[
+            styles.badge,
+            { backgroundColor: levelTheme.badgeBg, borderColor: levelTheme.badgeBorder },
+          ]}>
+            <Text style={[styles.badgeText, { color: levelTheme.badgeText }]}>
+              {SCENARIO_LEVEL_META[level].label}
+            </Text>
+          </View>
+        </View>
 
         <View style={immersive ? styles.questionWrapImmersive : undefined}>
           <Text style={[styles.question, immersive && styles.questionImmersive]}>{scenario.question}</Text>
@@ -286,6 +305,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: Radius.pill,
+    borderWidth: 1,
   },
   badgeText: {
     ...Typography.captionBold,

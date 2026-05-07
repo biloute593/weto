@@ -6,6 +6,7 @@ import {
   SafeAreaView,
   Alert,
   Platform,
+  TouchableOpacity,
   useWindowDimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -14,7 +15,15 @@ import { ScenarioCard } from '../components/ScenarioCard';
 import { MatchModal } from '../components/MatchModal';
 import { Colors, Radius, Spacing, Typography } from '../theme/colors';
 import { useWetoStore } from '../store/useWetoStore';
-import { PROFILE_COMPLETION_TARGET, SCENARIOS } from '../data/scenarios';
+import {
+  PROFILE_COMPLETION_TARGET,
+  SCENARIOS,
+  SCENARIO_LEVEL_META,
+  SCENARIO_LEVELS,
+  getAllowedScenarioLevels,
+  getScenariosForLevel,
+  isAdultBirthYear,
+} from '../data/scenarios';
 import { getDominantTrait, getRecommendedScenarios, getScenarioSelectionHint } from '../utils';
 
 export function FeedScreen() {
@@ -27,20 +36,30 @@ export function FeedScreen() {
     userVector,
     matches,
     nextScenario,
+    selectedLevel,
+    setSelectedLevel,
+    birthYear,
   } = useWetoStore();
 
   const navigation = useNavigation<any>();
   const { width } = useWindowDimensions();
-  const totalScenarios = SCENARIOS.length;
   const isImmersiveFeed = width < 768;
-  const isComplete = currentIndex >= totalScenarios || answeredIds.size >= totalScenarios;
-  const currentScenario = !isComplete ? SCENARIOS[currentIndex] : null;
+  const isAdult = useMemo(() => isAdultBirthYear(birthYear), [birthYear]);
+  const allowedLevels = useMemo(() => getAllowedScenarioLevels(birthYear), [birthYear]);
+  const levelScenarios = useMemo(() => getScenariosForLevel(selectedLevel), [selectedLevel]);
+  const totalScenarios = levelScenarios.length;
+  const answeredInLevelCount = useMemo(
+    () => levelScenarios.filter((scenario) => answeredIds.has(scenario.id)).length,
+    [levelScenarios, answeredIds]
+  );
+  const isComplete = currentIndex >= totalScenarios || answeredInLevelCount >= totalScenarios;
+  const currentScenario = !isComplete ? levelScenarios[currentIndex] ?? null : null;
   const signalRemainingCount = Math.max(0, PROFILE_COMPLETION_TARGET - answers.length);
   const hasReliableSignal = answers.length >= PROFILE_COMPLETION_TARGET;
   const dominantTrait = useMemo(() => getDominantTrait(userVector), [userVector]);
   const recommendedScenarios = useMemo(
-    () => getRecommendedScenarios(userVector, answeredIds, SCENARIOS),
-    [userVector, answeredIds]
+    () => getRecommendedScenarios(userVector, answeredIds, levelScenarios),
+    [userVector, answeredIds, levelScenarios]
   );
   const nextCategories = useMemo(() => {
     const categories = recommendedScenarios.map((scenario) => scenario.category);
@@ -49,8 +68,8 @@ export function FeedScreen() {
   }, [recommendedScenarios]);
   const selectionHint = useMemo(() => {
     if (!currentScenario) return null;
-    return getScenarioSelectionHint(currentScenario, userVector, answeredIds, SCENARIOS);
-  }, [currentScenario, userVector, answeredIds]);
+    return getScenarioSelectionHint(currentScenario, userVector, answeredIds, levelScenarios);
+  }, [currentScenario, userVector, answeredIds, levelScenarios]);
 
   const handleShare = useCallback((scenarioId: string) => {
     const scenario = SCENARIOS.find((s) => s.id === scenarioId);
@@ -90,6 +109,11 @@ export function FeedScreen() {
     nextScenario(scenarioId);
   }, [nextScenario]);
 
+  const handleLevelPress = useCallback((level: (typeof SCENARIO_LEVELS)[number]) => {
+    if (!allowedLevels.includes(level)) return;
+    setSelectedLevel(level);
+  }, [allowedLevels, setSelectedLevel]);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={[styles.header, isImmersiveFeed && styles.headerImmersive]}>
@@ -108,6 +132,43 @@ export function FeedScreen() {
         </View>
       </View>
 
+      <View style={styles.levelSection}>
+        <Text style={styles.levelSectionLabel}>Niveau de dilemmes</Text>
+        <View style={styles.levelStrip}>
+          {SCENARIO_LEVELS.map((level) => {
+            const meta = SCENARIO_LEVEL_META[level];
+            const isActive = selectedLevel === level;
+            const isLocked = !allowedLevels.includes(level);
+
+            return (
+              <TouchableOpacity
+                key={level}
+                style={[
+                  styles.levelPill,
+                  { borderColor: meta.accent },
+                  isActive && [styles.levelPillActive, { backgroundColor: meta.accent }],
+                  isLocked && styles.levelPillLocked,
+                ]}
+                activeOpacity={0.82}
+                disabled={isLocked}
+                onPress={() => handleLevelPress(level)}
+              >
+                <View style={styles.levelPillTop}>
+                  <Text style={[styles.levelPillLabel, isActive && styles.levelPillLabelActive]}>{meta.label}</Text>
+                  {meta.minAge ? <Text style={[styles.levelPillLock, isActive && styles.levelPillLabelActive]}>18+</Text> : null}
+                </View>
+                <Text style={[styles.levelPillCount, isActive && styles.levelPillLabelActive]}>
+                  {getScenariosForLevel(level).length} dilemmes
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        {!isAdult && (
+          <Text style={styles.levelGuardText}>Les niveaux Intense et Fire restent reserves aux profils 18+.</Text>
+        )}
+      </View>
+
 
 
 
@@ -115,9 +176,9 @@ export function FeedScreen() {
       {isComplete ? (
         <View style={styles.completeContainer}>
           <Text style={styles.completeEmoji}>🎉</Text>
-          <Text style={styles.completeTitle}>Banque epuisee</Text>
+          <Text style={styles.completeTitle}>Banque {SCENARIO_LEVEL_META[selectedLevel].label.toLowerCase()} epuisee</Text>
           <Text style={styles.completeSubtitle}>
-            Tu as explore toute la banque actuelle. Ton profil etait deja exploitable bien avant, mais la lecture est maintenant maximale sur {dominantTrait.label.toLowerCase()}.
+            Tu as explore les {totalScenarios} dilemmes du niveau {SCENARIO_LEVEL_META[selectedLevel].label.toLowerCase()}. Ton profil etait deja exploitable bien avant, mais la lecture est maintenant maximale sur {dominantTrait.label.toLowerCase()}.
           </Text>
           <View style={styles.completeActions}>
             <AppButton title="Voir mes matchs" onPress={handleOpenMatches} fullWidth />
@@ -182,6 +243,60 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
+  },
+  levelSection: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.md,
+    gap: Spacing.sm,
+  },
+  levelSectionLabel: {
+    ...Typography.captionBold,
+    color: Colors.textSecondary,
+  },
+  levelStrip: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  levelPill: {
+    flex: 1,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderWidth: 1,
+    gap: 4,
+  },
+  levelPillActive: {
+    transform: [{ translateY: -1 }],
+  },
+  levelPillLocked: {
+    opacity: 0.42,
+  },
+  levelPillTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  levelPillLabel: {
+    ...Typography.captionBold,
+    color: Colors.text,
+  },
+  levelPillLabelActive: {
+    color: Colors.white,
+  },
+  levelPillLock: {
+    ...Typography.small,
+    color: Colors.textSecondary,
+  },
+  levelPillCount: {
+    ...Typography.small,
+    color: Colors.textMuted,
+  },
+  levelGuardText: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    lineHeight: 18,
   },
   statusPill: {
     backgroundColor: Colors.accentLight,

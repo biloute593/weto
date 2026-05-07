@@ -22,6 +22,8 @@ export interface UserVector {
 
 export type ScenarioCategory = 'Social' | 'Absurd' | 'Values' | 'Relationship';
 
+export type ScenarioLevel = 'standard' | 'intense' | 'fire';
+
 export interface Choice {
   label: string;
   traitDeltas: TraitDelta;
@@ -30,6 +32,7 @@ export interface Choice {
 export interface Scenario {
   id: string;
   category: ScenarioCategory;
+  level?: ScenarioLevel;
   question: string;
   choices: Choice[];
 }

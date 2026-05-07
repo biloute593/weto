@@ -1,5 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { PROFILE_COMPLETION_TARGET, SCENARIOS } from '../data/scenarios';
+import {
+  PROFILE_COMPLETION_TARGET,
+  SCENARIOS,
+  getAllowedScenarioLevels,
+  getScenariosForLevel,
+} from '../data/scenarios';
 import {
   UserVector,
   TraitKey,
@@ -7,6 +12,7 @@ import {
   MatchProfile,
   ChatMessage,
   ChatThread,
+  ScenarioLevel,
 } from '../types';
 import {
   calculateProfile,
@@ -51,6 +57,41 @@ const MATCH_SIMILARITY_THRESHOLD = 0.75;
 const MAX_SKIPPED_SCENARIOS = 5;
 const MATCH_DISCOVERY_START = 10;
 const MATCH_DISCOVERY_INTERVAL = 2;
+
+function getScenarioPool(level: ScenarioLevel, birthYear: string) {
+  const allowedLevels = getAllowedScenarioLevels(birthYear);
+  const safeLevel = allowedLevels.includes(level) ? level : 'standard';
+
+  return {
+    safeLevel,
+    scenarioPool: getScenariosForLevel(safeLevel),
+  };
+}
+
+function resolveCurrentIndex(
+  level: ScenarioLevel,
+  birthYear: string,
+  userVector: UserVector,
+  answeredIds: Set<string>,
+  skippedScenarioIds: string[]
+) {
+  const { safeLevel, scenarioPool } = getScenarioPool(level, birthYear);
+  const next = getNextScenario(userVector, answeredIds, scenarioPool, new Set(skippedScenarioIds));
+
+  if (!next) {
+    return {
+      safeLevel,
+      currentIndex: scenarioPool.length,
+    };
+  }
+
+  const nextIdx = scenarioPool.findIndex((scenario) => scenario.id === next.id);
+
+  return {
+    safeLevel,
+    currentIndex: nextIdx >= 0 ? nextIdx : 0,
+  };
+}
 
 // ─── Matching Engine ────────────────────────────────────────────────
 
@@ -108,10 +149,12 @@ interface WetoState {
   birthYear: string;
   gender: string;
   seeking: string;
+  selectedLevel: ScenarioLevel;
 
   // Actions
   updateProfile: (name: string, avatar: string) => void;
   completeOnboarding: (name: string, avatar: string, birthYear: string, gender: string, seeking: string) => void;
+  setSelectedLevel: (level: ScenarioLevel) => void;
   startAnswer: () => void;
   submitAnswer: (scenarioId: string, choiceIndex: number) => void;
   nextScenario: (skippedScenarioId?: string) => void;
@@ -131,6 +174,7 @@ export const useWetoStore = create<WetoState>()(
       birthYear: '',
       gender: '',
       seeking: '',
+      selectedLevel: 'standard',
       userVector: { ...INITIAL_VECTOR },
       hasCompletedOnboarding: false,
       currentIndex: 0,
@@ -146,13 +190,35 @@ export const useWetoStore = create<WetoState>()(
       updateProfile: (name, avatar) => set({ userName: name, userAvatar: avatar }),
 
       completeOnboarding: (name, avatar, birthYear, gender, seeking) =>
-        set({
-          userName: name,
-          userAvatar: avatar,
-          birthYear: birthYear,
-          gender: gender,
-          seeking: seeking,
-          hasCompletedOnboarding: true,
+        set((state) => {
+          const { safeLevel } = getScenarioPool(state.selectedLevel, birthYear);
+
+          return {
+            userName: name,
+            userAvatar: avatar,
+            birthYear: birthYear,
+            gender: gender,
+            seeking: seeking,
+            selectedLevel: safeLevel,
+            hasCompletedOnboarding: true,
+          };
+        }),
+
+      setSelectedLevel: (level) =>
+        set((state) => {
+          const { safeLevel, currentIndex } = resolveCurrentIndex(
+            level,
+            state.birthYear,
+            state.userVector,
+            state.answeredIds,
+            state.skippedScenarioIds
+          );
+
+          return {
+            selectedLevel: safeLevel,
+            currentIndex,
+            startTime: null,
+          };
         }),
 
       startAnswer: () => set({ startTime: Date.now() }),
@@ -229,7 +295,7 @@ export const useWetoStore = create<WetoState>()(
       },
 
       nextScenario: (skippedScenarioId) => {
-        const { currentIndex, answeredIds, skippedScenarioIds } = get();
+        const { answeredIds, skippedScenarioIds, selectedLevel, birthYear, userVector } = get();
         const nextSkippedIds = skippedScenarioId && !answeredIds.has(skippedScenarioId)
           ? [
               skippedScenarioId,
@@ -237,25 +303,29 @@ export const useWetoStore = create<WetoState>()(
             ].slice(0, MAX_SKIPPED_SCENARIOS)
           : skippedScenarioIds;
 
-        // Use AI hook to determine next scenario
+        const { safeLevel, scenarioPool } = getScenarioPool(selectedLevel, birthYear);
+
         const next = getNextScenario(
-          get().userVector,
+          userVector,
           answeredIds,
-          SCENARIOS,
+          scenarioPool,
           new Set(nextSkippedIds)
         );
+
         if (!next) {
           set({
-            currentIndex: SCENARIOS.length,
+            selectedLevel: safeLevel,
+            currentIndex: scenarioPool.length,
             skippedScenarioIds: nextSkippedIds,
             startTime: null,
           });
           return;
         }
 
-        const nextIdx = SCENARIOS.findIndex((s) => s.id === next.id);
+        const nextIdx = scenarioPool.findIndex((scenario) => scenario.id === next.id);
         set({
-          currentIndex: nextIdx >= 0 ? nextIdx : currentIndex + 1,
+          selectedLevel: safeLevel,
+          currentIndex: nextIdx >= 0 ? nextIdx : 0,
           skippedScenarioIds: nextSkippedIds,
           startTime: Date.now(),
         });
@@ -336,6 +406,7 @@ export const useWetoStore = create<WetoState>()(
       resetProgress: () => {
         set({
           currentIndex: 0,
+          selectedLevel: 'standard',
           answers: [],
           answeredIds: new Set(),
           skippedScenarioIds: [],
@@ -363,11 +434,27 @@ export const useWetoStore = create<WetoState>()(
               (persistedState?.userAvatar && persistedState.userAvatar !== '👤')
           );
 
+        const answeredIds = new Set(persistedState?.answeredIds || []);
+        const birthYear = persistedState?.birthYear ?? currentState.birthYear;
+        const requestedLevel = persistedState?.selectedLevel ?? currentState.selectedLevel;
+        const userVector = persistedState?.userVector ?? currentState.userVector;
+        const skippedScenarioIds = persistedState?.skippedScenarioIds ?? currentState.skippedScenarioIds;
+        const { safeLevel, currentIndex } = resolveCurrentIndex(
+          requestedLevel,
+          birthYear,
+          userVector,
+          answeredIds,
+          skippedScenarioIds
+        );
+
         return {
           ...currentState,
           ...persistedState,
           hasCompletedOnboarding: inferredOnboarding,
-          answeredIds: new Set(persistedState?.answeredIds || []),
+          answeredIds,
+          selectedLevel: safeLevel,
+          currentIndex: answeredIds.size > 0 ? currentIndex : 0,
+          startTime: null,
         };
       },
     }
