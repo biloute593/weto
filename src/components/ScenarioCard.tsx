@@ -152,10 +152,10 @@ export function ScenarioCard({ scenario, onShare, onSkip, immersive = false }: S
   };
 
   const CATEGORY_THEME: Record<string, { cardBg: string; glowA: string; glowB: string; border: string }> = {
-    Relationship: { cardBg: 'rgba(255,60,100,0.06)', glowA: '#FFD6E8', glowB: '#FFBAD0', border: 'rgba(255,60,100,0.13)' },
-    Social:       { cardBg: 'rgba(0,122,255,0.05)',  glowA: '#D9EBFF', glowB: '#FFF0D6', border: 'rgba(0,122,255,0.08)'   },
-    Absurd:       { cardBg: 'rgba(124,58,237,0.05)', glowA: '#EDE0FF', glowB: '#D8C5FF', border: 'rgba(124,58,237,0.08)'  },
-    Values:       { cardBg: 'rgba(5,150,105,0.05)',  glowA: '#D6F5E3', glowB: '#B8EED0', border: 'rgba(5,150,105,0.08)'   },
+    Relationship: { cardBg: 'rgba(255,60,100,0.10)', glowA: '#FFD6E8', glowB: '#FFBAD0', border: 'rgba(255,60,100,0.22)' },
+    Social:       { cardBg: 'rgba(0,122,255,0.07)',  glowA: '#D9EBFF', glowB: '#FFF0D6', border: 'rgba(0,122,255,0.18)'   },
+    Absurd:       { cardBg: 'rgba(124,58,237,0.08)', glowA: '#EDE0FF', glowB: '#D8C5FF', border: 'rgba(124,58,237,0.20)'  },
+    Values:       { cardBg: 'rgba(5,150,105,0.08)',  glowA: '#D6F5E3', glowB: '#B8EED0', border: 'rgba(5,150,105,0.18)'   },
   };
   const theme = CATEGORY_THEME[scenario.category] ?? CATEGORY_THEME.Social;
 
@@ -232,6 +232,8 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.md,
     marginVertical: Spacing.sm,
     flex: 1,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 16 },
       android: { elevation: 4 },
