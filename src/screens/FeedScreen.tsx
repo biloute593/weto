@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Share,
   TouchableOpacity,
   useWindowDimensions,
+  FlatList,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { AppButton } from '../components/AppButton';
@@ -78,6 +79,52 @@ export function FeedScreen() {
       ? indexedScenario
       : fallbackScenario
     : null;
+
+  const flatListRef = useRef<FlatList>(null);
+  const [containerHeight, setContainerHeight] = useState<number>(0);
+  const [initialScrolled, setInitialScrolled] = useState(false);
+
+  const handleScrollEnd = useCallback((e: any) => {
+    if (containerHeight <= 0) return;
+    const offsetY = e.nativeEvent.contentOffset.y;
+    const index = Math.round(offsetY / containerHeight);
+    if (index >= 0 && index < levelScenarios.length && index !== currentIndex) {
+      useWetoStore.setState({ currentIndex: index });
+    }
+  }, [containerHeight, levelScenarios.length, currentIndex]);
+
+  const handleCardAnswered = useCallback((index: number) => {
+    setTimeout(() => {
+      if (index + 1 < levelScenarios.length) {
+        flatListRef.current?.scrollToIndex({ index: index + 1, animated: true });
+        useWetoStore.setState({ currentIndex: index + 1 });
+      }
+    }, 600);
+  }, [levelScenarios.length]);
+
+  const handleSkipScenario = useCallback((scenarioId: string, index: number) => {
+    if (index + 1 < levelScenarios.length) {
+      flatListRef.current?.scrollToIndex({ index: index + 1, animated: true });
+      useWetoStore.setState({ currentIndex: index + 1 });
+    }
+  }, [levelScenarios.length]);
+
+  useEffect(() => {
+    if (containerHeight > 0 && levelScenarios.length > 0 && !initialScrolled) {
+      const targetIndex = Math.min(currentIndex, levelScenarios.length - 1);
+      if (targetIndex > 0) {
+        setTimeout(() => {
+          flatListRef.current?.scrollToIndex({ index: targetIndex, animated: false });
+        }, 150);
+      }
+      setInitialScrolled(true);
+    }
+  }, [containerHeight, levelScenarios.length, currentIndex, initialScrolled]);
+
+  useEffect(() => {
+    setInitialScrolled(false);
+  }, [selectedLevel]);
+
   const dominantTrait = useMemo(() => getDominantTrait(userVector), [userVector]);
   const profileResumeCopy = useMemo(() => {
     if (answers.length === 0) {
@@ -148,9 +195,7 @@ export function FeedScreen() {
     navigation.navigate('Chat');
   }, [navigation]);
 
-  const handleSkipScenario = useCallback((scenarioId: string) => {
-    nextScenario(scenarioId);
-  }, [nextScenario]);
+
 
   const handleLevelPress = useCallback((level: (typeof SCENARIO_LEVELS)[number]) => {
     if (!allowedLevels.includes(level)) return;
@@ -238,7 +283,15 @@ export function FeedScreen() {
         </View>
       )}
 
-      <View style={[styles.feedBody, softRegisterNudge && styles.feedBodyWithBottomOverlay]}>
+      <View
+        style={[styles.feedBody, softRegisterNudge && styles.feedBodyWithBottomOverlay]}
+        onLayout={(e) => {
+          const layoutHeight = e.nativeEvent.layout.height;
+          if (layoutHeight > 0 && layoutHeight !== containerHeight) {
+            setContainerHeight(layoutHeight);
+          }
+        }}
+      >
       {isComplete ? (
         <View style={[styles.completeContainer, isSmallScreen && { padding: Spacing.md }]}>
           <View style={[styles.completeEmoji, isSmallScreen && { width: 48, height: 48, borderRadius: 24, marginBottom: Spacing.sm }]}>
@@ -253,26 +306,41 @@ export function FeedScreen() {
             <AppButton title="Explorer mon profil" onPress={handleOpenProfile} variant="secondary" fullWidth />
           </View>
         </View>
-      ) : isSyncing && !currentScenario ? (
+      ) : containerHeight === 0 || (isSyncing && levelScenarios.length === 0) ? (
         <View style={[styles.cardStage, isImmersiveFeed && styles.cardStageImmersive]}>
           <SkeletonCard />
         </View>
       ) : (
-        <View style={[styles.cardStage, isImmersiveFeed && styles.cardStageImmersive]}>
-          {currentScenario ? (
+        <FlatList
+          ref={flatListRef}
+          data={levelScenarios}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item, index }) => (
             <ScenarioCard
-              key={`${selectedLevel}:${currentScenario.id}`}
-              scenario={currentScenario}
-              onShare={() => { void handleShare(currentScenario.id); }}
-              onSkip={handleSkipScenario}
-              onPrev={prevScenario}
+              scenario={item}
+              onShare={() => { void handleShare(item.id); }}
+              onSkip={() => handleSkipScenario(item.id, index)}
               onOpenChat={handleOpenChat}
               immersive={isImmersiveFeed}
+              cardHeight={containerHeight}
+              onAnswered={() => handleCardAnswered(index)}
             />
-          ) : (
-            <SkeletonCard />
           )}
-        </View>
+          pagingEnabled
+          showsVerticalScrollIndicator={false}
+          decelerationRate="fast"
+          snapToInterval={containerHeight}
+          snapToAlignment="start"
+          onMomentumScrollEnd={handleScrollEnd}
+          getItemLayout={(data, index) => ({
+            length: containerHeight,
+            offset: containerHeight * index,
+            index,
+          })}
+          windowSize={3}
+          maxToRenderPerBatch={2}
+          removeClippedSubviews={Platform.OS !== 'web'}
+        />
       )}
       </View>
 
