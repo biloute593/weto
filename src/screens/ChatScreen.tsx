@@ -10,12 +10,55 @@ import {
   TextInput,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Colors, Spacing, Radius, Typography } from '../theme/colors';
+import { Ionicons } from '@expo/vector-icons';
+import { Colors, Spacing, Radius, Typography, getThemeColors } from '../theme/colors';
 import { useWetoStore } from '../store/useWetoStore';
-import { ChatThread } from '../types';
+import { StarfieldBackground } from '../components/StarfieldBackground';
+import { ChatMessage, ChatThread } from '../types';
+import { getAvatarMonogram } from '../utils';
+
+function formatVoiceDuration(durationMs?: number) {
+  const totalSeconds = Math.max(1, Math.round((durationMs ?? 0) / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function getMessagePreview(message?: ChatMessage) {
+  if (!message) return '';
+
+  const firstLine = message.text.split('\n')[0]?.toLowerCase() ?? '';
+
+  switch (message.type) {
+    case 'call':
+      return firstLine.includes('visio') || firstLine.includes('video')
+        ? 'Invitation visio'
+        : 'Invitation appel vocal';
+    case 'image':
+      if (message.ephemeral) return 'Photo - 1 seul visionnage';
+      return message.text && message.text !== 'Photo' ? message.text : 'Photo';
+    case 'video':
+      if (message.ephemeral) return 'Video - 1 seul visionnage';
+      return message.text && message.text !== 'Video' ? message.text : 'Video';
+    case 'voice':
+      return `Vocal - ${formatVoiceDuration(message.durationMs)}`;
+    case 'flame':
+      return 'Flamme';
+    case 'dilemma':
+      return 'Dilemme partagé';
+    case 'dilemma-response':
+      return message.dilemma?.selectedChoiceLabel
+        ? `Réponse au dilemme: ${message.dilemma.selectedChoiceLabel}`
+        : 'Réponse au dilemme';
+    default:
+      return message.text ?? '';
+  }
+}
 
 export function ChatScreen() {
-  const { chats } = useWetoStore();
+  const { chats, themeMode } = useWetoStore();
+  const p = getThemeColors(themeMode);
+  const styles = useMemo(() => createStyles(p), [themeMode]);
   const navigation = useNavigation<any>();
   const [query, setQuery] = useState('');
 
@@ -34,7 +77,7 @@ export function ChatScreen() {
     if (!normalizedQuery) return chatList;
 
     return chatList.filter((thread) => {
-      const lastMessage = thread.messages[thread.messages.length - 1]?.text?.toLowerCase() ?? '';
+      const lastMessage = getMessagePreview(thread.messages[thread.messages.length - 1]).toLowerCase();
       return (
         thread.contactName.toLowerCase().includes(normalizedQuery) ||
         lastMessage.includes(normalizedQuery)
@@ -44,6 +87,7 @@ export function ChatScreen() {
 
   const renderItem = ({ item }: { item: ChatThread }) => {
     const lastMessage = item.messages[item.messages.length - 1];
+    const avatarLabel = getAvatarMonogram(item.contactName, item.contactAvatar);
 
     return (
       <TouchableOpacity
@@ -53,7 +97,7 @@ export function ChatScreen() {
       >
         <View style={styles.avatarContainer}>
           <View style={styles.avatarCircle}>
-            <Text style={styles.avatarEmoji}>{item.contactAvatar}</Text>
+            <Text style={styles.avatarEmoji}>{avatarLabel}</Text>
           </View>
           {item.unread && <View style={styles.unreadDot} />}
         </View>
@@ -76,7 +120,7 @@ export function ChatScreen() {
             style={[styles.lastMessage, item.unread && styles.lastMessageBold]}
             numberOfLines={1}
           >
-            {lastMessage ? lastMessage.text : ''}
+            {getMessagePreview(lastMessage)}
           </Text>
         </View>
       </TouchableOpacity>
@@ -90,7 +134,9 @@ export function ChatScreen() {
           <Text style={styles.title}>Chat</Text>
         </View>
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyEmoji}>💬</Text>
+          <View style={styles.emptyEmoji}>
+            <Ionicons name="chatbubble-ellipses-outline" size={32} color={themeMode === 'dark' ? '#8BAED4' : '#4E6E92'} />
+          </View>
           <Text style={styles.emptyTitle}>Pas encore de conversations</Text>
           <Text style={styles.emptySubtitle}>
             Tes conversations avec tes matchs apparaîtront ici.
@@ -102,16 +148,19 @@ export function ChatScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {themeMode === 'dark' && <StarfieldBackground />}
       <View style={styles.header}>
         <Text style={styles.title}>Chat</Text>
       </View>
 
       <View style={styles.searchContainer}>
-        <Text style={styles.searchIcon}>🔍</Text>
+        <View style={styles.searchIcon}>
+          <Ionicons name="search-outline" size={16} color={themeMode === 'dark' ? '#5A7A9E' : '#4E6E92'} />
+        </View>
         <TextInput
           style={styles.searchInput}
           placeholder="Rechercher une conversation..."
-          placeholderTextColor={Colors.textMuted}
+          placeholderTextColor={p.textMuted}
           value={query}
           onChangeText={setQuery}
           autoCapitalize="none"
@@ -119,14 +168,16 @@ export function ChatScreen() {
         />
         {query.length > 0 && (
           <TouchableOpacity onPress={() => setQuery('')} style={styles.clearSearchButton}>
-            <Text style={styles.clearSearchText}>×</Text>
+            <Ionicons name="close" size={16} color={p.textSecondary} style={styles.clearSearchText} />
           </TouchableOpacity>
         )}
       </View>
 
       {filteredChats.length === 0 ? (
         <View style={styles.emptySearchContainer}>
-          <Text style={styles.emptySearchEmoji}>🫥</Text>
+          <View style={styles.emptySearchEmoji}>
+            <Ionicons name="search-outline" size={22} color={themeMode === 'dark' ? '#8BAED4' : '#4E6E92'} />
+          </View>
           <Text style={styles.emptySearchTitle}>Aucun resultat</Text>
           <Text style={styles.emptySearchSubtitle}>
             Essaie un prenom ou un mot du dernier message.
@@ -138,6 +189,7 @@ export function ChatScreen() {
           keyExtractor={(item) => item.contactId}
           renderItem={renderItem}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
         />
@@ -146,10 +198,11 @@ export function ChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(p: ReturnType<typeof getThemeColors>) {
+  return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: p.background,
   },
   header: {
     flexDirection: 'row',
@@ -160,7 +213,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...Typography.title,
-    color: Colors.text,
+    color: p.text,
   },
   emptyContainer: {
     flex: 1,
@@ -169,25 +222,30 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
   },
   emptyEmoji: {
-    fontSize: 60,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(124,203,255,0.18)',
     marginBottom: Spacing.md,
   },
   emptyTitle: {
     ...Typography.h1,
-    color: Colors.text,
+    color: p.text,
     textAlign: 'center',
     marginBottom: Spacing.sm,
   },
   emptySubtitle: {
     ...Typography.body,
-    color: Colors.textSecondary,
+    color: p.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.card,
+    backgroundColor: p.card,
     marginHorizontal: Spacing.md,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.md,
@@ -199,16 +257,21 @@ const styles = StyleSheet.create({
     }),
   },
   searchIcon: {
-    fontSize: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(124,203,255,0.18)',
   },
   searchPlaceholder: {
     ...Typography.body,
-    color: Colors.textMuted,
+    color: p.textMuted,
   },
   searchInput: {
     flex: 1,
     ...Typography.body,
-    color: Colors.text,
+    color: p.text,
     paddingVertical: 0,
   },
   clearSearchButton: {
@@ -217,12 +280,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.background,
+    backgroundColor: p.background,
   },
   clearSearchText: {
-    color: Colors.textSecondary,
-    fontSize: 18,
-    lineHeight: 18,
+    textAlign: 'center',
   },
   emptySearchContainer: {
     flex: 1,
@@ -232,15 +293,20 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   emptySearchEmoji: {
-    fontSize: 42,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(124,203,255,0.16)',
   },
   emptySearchTitle: {
     ...Typography.h2,
-    color: Colors.text,
+    color: p.text,
   },
   emptySearchSubtitle: {
     ...Typography.body,
-    color: Colors.textSecondary,
+    color: p.textSecondary,
     textAlign: 'center',
   },
   listContent: {
@@ -260,12 +326,15 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 27,
-    backgroundColor: Colors.accentLight,
+    backgroundColor: p.accentLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarEmoji: {
-    fontSize: 26,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1E293B',
+    letterSpacing: 0.4,
   },
   unreadDot: {
     position: 'absolute',
@@ -274,9 +343,9 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: Colors.accent,
+    backgroundColor: p.accent,
     borderWidth: 2,
-    borderColor: Colors.background,
+    borderColor: p.background,
   },
   chatInfo: {
     flex: 1,
@@ -289,26 +358,27 @@ const styles = StyleSheet.create({
   },
   contactName: {
     ...Typography.bodyBold,
-    color: Colors.text,
+    color: p.text,
   },
   contactNameBold: {
     fontWeight: '700',
   },
   timestamp: {
     ...Typography.caption,
-    color: Colors.textMuted,
+    color: p.textMuted,
   },
   lastMessage: {
     ...Typography.body,
-    color: Colors.textSecondary,
+    color: p.textSecondary,
   },
   lastMessageBold: {
-    color: Colors.text,
+    color: p.text,
     fontWeight: '600',
   },
   separator: {
     height: 1,
-    backgroundColor: Colors.border,
+    backgroundColor: p.border,
     marginLeft: 54 + Spacing.md,
   },
-});
+  });
+}

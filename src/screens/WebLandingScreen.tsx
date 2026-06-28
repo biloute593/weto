@@ -1,15 +1,176 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Image,
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   useWindowDimensions,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle, Path } from 'react-native-svg';
+import { AppButton } from '../components/AppButton';
 import { ProgressRing } from '../components/ProgressRing';
+import { trackEvent } from '../utils/analytics';
+
+type LandingSignalTone = 'clarity' | 'care' | 'risk' | 'stability';
+
+type LandingDilemmaChoice = {
+  label: string;
+  signalTitle: string;
+  signalBody: string;
+  takeaway: string;
+  traits: Array<{ label: string; value: number; tone: LandingSignalTone }>;
+};
+
+type LandingDilemma = {
+  id: string;
+  kicker: string;
+  question: string;
+  choices: LandingDilemmaChoice[];
+};
+
+const LANDING_SIGNAL_COLORS: Record<LandingSignalTone, { bg: string; fill: string; text: string }> = {
+  clarity: { bg: '#E9F1FF', fill: '#1F6FFF', text: '#1F6FFF' },
+  care: { bg: '#EAF8F0', fill: '#2C9B66', text: '#2C9B66' },
+  risk: { bg: '#FFF1E6', fill: '#F58A28', text: '#C86208' },
+  stability: { bg: '#F0ECFF', fill: '#7A5AF8', text: '#7A5AF8' },
+};
+
+const LANDING_DILEMMAS: LandingDilemma[] = [
+  {
+    id: 'ex-text',
+    kicker: 'Premier signal',
+    question: 'Vous êtes en couple. Un ex vous écrit : “Tu me manques”. Vous répondez ?',
+    choices: [
+      {
+        label: 'Je ne réponds pas.',
+        signalTitle: 'Tu protèges d’abord le cadre.',
+        signalBody: 'Ta première lecture passe par la stabilité et les limites. Weto y voit un signal de clarté avant la curiosité.',
+        takeaway: 'Signal immédiat : tu privilégies le cadre clair au frisson ambigu.',
+        traits: [
+          { label: 'Stabilité', value: 82, tone: 'stability' },
+          { label: 'Gestion des limites', value: 78, tone: 'clarity' },
+          { label: 'Tolérance au risque', value: 33, tone: 'risk' },
+        ],
+      },
+      {
+        label: 'Je réponds, mais je garde mes distances.',
+        signalTitle: 'Tu veux comprendre sans t’exposer totalement.',
+        signalBody: 'Tu ouvres une porte contrôlée. Le signal n’est ni fuyant ni impulsif : il cherche l’information avant l’emballement.',
+        takeaway: 'Signal immédiat : tu testes la zone grise sans lâcher ton centre.',
+        traits: [
+          { label: 'Clarté relationnelle', value: 69, tone: 'clarity' },
+          { label: 'Tolérance au risque', value: 56, tone: 'risk' },
+          { label: 'Réactivité émotionnelle', value: 49, tone: 'care' },
+        ],
+      },
+      {
+        label: 'Je lui dis clairement que je suis en couple.',
+        signalTitle: 'Tu préfères la vérité explicite au flou élégant.',
+        signalBody: 'Le signal dominant est net : tu réduis l’ambiguïté rapidement, même si ça crée un petit inconfort frontal.',
+        takeaway: 'Signal immédiat : tu privilégies l’alignement aux demi-messages.',
+        traits: [
+          { label: 'Clarté relationnelle', value: 86, tone: 'clarity' },
+          { label: 'Gestion des conflits', value: 63, tone: 'care' },
+          { label: 'Stabilité', value: 74, tone: 'stability' },
+        ],
+      },
+      {
+        label: 'Je vois d’abord où il ou elle veut en venir.',
+        signalTitle: 'Tu lis l’intention avant de décider du cadre.',
+        signalBody: 'Ton signal immédiat penche vers l’exploration. Weto le lit comme une curiosité plus forte que l’évitement automatique.',
+        takeaway: 'Signal immédiat : tu explores d’abord, tu clôtures ensuite.',
+        traits: [
+          { label: 'Tolérance au risque', value: 76, tone: 'risk' },
+          { label: 'Lecture sociale', value: 67, tone: 'care' },
+          { label: 'Stabilité', value: 44, tone: 'stability' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'friend-secret',
+    kicker: 'Second angle',
+    question: 'Un ami te confie un secret sensible. Ton groupe insiste pour savoir. Tu fais quoi ?',
+    choices: [
+      {
+        label: 'Je garde le secret, point.',
+        signalTitle: 'Tu tiens la ligne même sous pression sociale.',
+        signalBody: 'Le signal dominant est la loyauté structurée. Tu supportes la tension du groupe sans céder tout de suite au confort collectif.',
+        takeaway: 'Signal immédiat : tu privilégies la cohérence à l’adhésion facile.',
+        traits: [
+          { label: 'Stabilité', value: 79, tone: 'stability' },
+          { label: 'Loyauté', value: 88, tone: 'clarity' },
+          { label: 'Tolérance au risque', value: 38, tone: 'risk' },
+        ],
+      },
+      {
+        label: 'Je donne juste le minimum pour calmer le groupe.',
+        signalTitle: 'Tu arbitres entre paix sociale et fidélité.',
+        signalBody: 'Weto lit ici une stratégie d’équilibre : tu cherches à contenir la pression sans aller jusqu’à la trahison totale.',
+        takeaway: 'Signal immédiat : tu ajustes le cadre plutôt que de le casser.',
+        traits: [
+          { label: 'Gestion sociale', value: 73, tone: 'care' },
+          { label: 'Clarté relationnelle', value: 54, tone: 'clarity' },
+          { label: 'Tolérance au risque', value: 51, tone: 'risk' },
+        ],
+      },
+      {
+        label: 'Je retourne la pression sur ceux qui insistent.',
+        signalTitle: 'Tu préfères l’affrontement net à l’érosion lente.',
+        signalBody: 'Le signal monte sur la confrontation assumée : tu coupes court plutôt que de laisser le groupe grignoter le cadre.',
+        takeaway: 'Signal immédiat : tu défends fort quand une limite est menacée.',
+        traits: [
+          { label: 'Gestion des conflits', value: 81, tone: 'clarity' },
+          { label: 'Stabilité', value: 62, tone: 'stability' },
+          { label: 'Réactivité émotionnelle', value: 58, tone: 'care' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'last-minute-date',
+    kicker: 'Troisième lecture',
+    question: 'Quelqu’un annule un date important au dernier moment avec “désolé, journée compliquée”. Ta réaction ?',
+    choices: [
+      {
+        label: 'Je laisse passer une fois et j’observe la suite.',
+        signalTitle: 'Tu ne sur-réagis pas au premier faux pas.',
+        signalBody: 'Le signal est souple sans être naïf. Tu laisses une chance, mais ton radar reste actif sur la cohérence à venir.',
+        takeaway: 'Signal immédiat : patience stratégique plutôt que retrait immédiat.',
+        traits: [
+          { label: 'Stabilité', value: 76, tone: 'stability' },
+          { label: 'Lecture sociale', value: 64, tone: 'care' },
+          { label: 'Tolérance au risque', value: 46, tone: 'risk' },
+        ],
+      },
+      {
+        label: 'Je demande franchement si cette personne est vraiment impliquée.',
+        signalTitle: 'Tu veux de la clarté tout de suite.',
+        signalBody: 'Weto lit un besoin rapide d’alignement. Tu préfères un mini-frisson de vérité à trois semaines de confusion élégante.',
+        takeaway: 'Signal immédiat : tu coupes l’ambiguïté avant qu’elle s’installe.',
+        traits: [
+          { label: 'Clarté relationnelle', value: 89, tone: 'clarity' },
+          { label: 'Gestion des conflits', value: 66, tone: 'care' },
+          { label: 'Tolérance au risque', value: 57, tone: 'risk' },
+        ],
+      },
+      {
+        label: 'Je décroche mentalement et je passe à autre chose.',
+        signalTitle: 'Tu fermes vite quand la fiabilité baisse.',
+        signalBody: 'Le signal dominant est la protection. Tu privilégies le retrait propre plutôt que le pari émotionnel prolongé.',
+        takeaway: 'Signal immédiat : ton système préfère perdre tôt que s’user longtemps.',
+        traits: [
+          { label: 'Protection émotionnelle', value: 81, tone: 'care' },
+          { label: 'Stabilité', value: 61, tone: 'stability' },
+          { label: 'Tolérance au risque', value: 28, tone: 'risk' },
+        ],
+      },
+    ],
+  },
+];
 
 const AVATARS = {
   lea: 'https://randomuser.me/api/portraits/women/68.jpg',
@@ -29,18 +190,125 @@ const PROFILE_TRAITS = [
 ];
 
 const CHAT_THREADS = [
-  { name: 'Léa', avatar: AVATARS.lea, text: 'Haha j’aurais jamais pensé répondre pareil 😌', time: '09:41' },
-  { name: 'Thomas', avatar: AVATARS.thomas, text: 'Ce dilemme était crazy 😂', time: 'Hier' },
+  { name: 'Léa', avatar: AVATARS.lea, text: 'Haha, j’aurais jamais pensé répondre pareil.', time: '09:41' },
+  { name: 'Thomas', avatar: AVATARS.thomas, text: 'Ce dilemme était intense', time: 'Hier' },
   { name: 'Emma', avatar: AVATARS.emma, text: 'On est grave sync sur ça !', time: 'Hier' },
   { name: 'Julien', avatar: AVATARS.julien, text: 'Tu veux qu’on en parle ?', time: '2j' },
-  { name: 'Chloé', avatar: AVATARS.chloe, text: 'Trop hâte d’en découvrir plus sur toi 😉', time: '2j' },
+  { name: 'Chloé', avatar: AVATARS.chloe, text: 'Hâte d’en découvrir plus sur toi.', time: '2j' },
 ];
 
-export function WebLandingScreen() {
+const REALITY_PILLARS = [
+  {
+    title: 'Tu réagis avant de te vendre.',
+    body: 'Le premier signal vient d’un choix concret. Pas d’une bio optimisée, pas d’une photo retouchée, pas d’un personnage.',
+  },
+  {
+    title: 'La compatibilité part de ta manière de trancher.',
+    body: 'Weto lit ce que tu fais face au flou, au risque, à la loyauté et à la clarté pour proposer des connexions plus cohérentes.',
+  },
+  {
+    title: 'Les conversations démarrent avec de la matière.',
+    body: 'Chaque dilemme peut devenir un angle de discussion naturel, donc moins de small talk vide et plus de vrai relief.',
+  },
+] as const;
+
+const WORKFLOW_STEPS = [
+  {
+    step: '01',
+    title: 'Réponds à des dilemmes qui comptent.',
+    body: 'Relationnel, social, absurde ou tendu: chaque scénario cherche une réaction réelle, pas une réponse “jolie”.',
+  },
+  {
+    step: '02',
+    title: 'Regarde ton signal apparaître.',
+    body: 'Clarté, stabilité, gestion des limites, tolérance au risque: Weto transforme une réaction en lecture immédiatement utile.',
+  },
+  {
+    step: '03',
+    title: 'Entre en conversation avec un vrai point d’entrée.',
+    body: 'Les profils, les matchs et les DM s’appuient ensuite sur des réponses concrètes plutôt que sur des slogans personnels.',
+  },
+] as const;
+
+const FAQ_ITEMS = [
+  {
+    question: 'Weto, c’est quoi exactement ?',
+    answer:
+      'Weto est une application de rencontre basée sur des dilemmes interactifs. Au lieu de commencer par une longue inscription ou une bio, tu réagis à des situations concrètes et l’app construit ton signal à partir de ça.',
+  },
+  {
+    question: 'Pourquoi commencer par un dilemme avant l’inscription ?',
+    answer:
+      'Parce que c’est là que la promesse devient réelle. Tu vois d’abord ce que Weto lit chez toi, puis tu décides si ce signal mérite d’être sauvegardé.',
+  },
+  {
+    question: 'Weto remplace complètement les profils ?',
+    answer:
+      'Non. Les profils restent utiles, mais ils arrivent après un premier niveau de vérité. L’idée est de réduire la façade et d’augmenter la matière relationnelle.',
+  },
+  {
+    question: 'À quoi servent les matchs sur Weto ?',
+    answer:
+      'Les matchs servent à relier des personnes qui réagissent avec une compatibilité intéressante sur des tensions concrètes: loyauté, humour, clarté, gestion du risque ou des conflits.',
+  },
+] as const;
+
+export function WebLandingScreen({ onStart }: { onStart: () => void }) {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 1320;
   const isTablet = width >= 820;
   const isCompact = width < 1320;
+  const [activeDilemmaIndex, setActiveDilemmaIndex] = useState(0);
+  const [selectedChoiceIndex, setSelectedChoiceIndex] = useState<number | null>(null);
+  const activeDilemma = LANDING_DILEMMAS[activeDilemmaIndex];
+  const selectedChoice = selectedChoiceIndex !== null ? activeDilemma.choices[selectedChoiceIndex] : null;
+
+  const nextDilemmaLabel = useMemo(() => {
+    const nextDilemma = LANDING_DILEMMAS[(activeDilemmaIndex + 1) % LANDING_DILEMMAS.length];
+    return nextDilemma.kicker.toLowerCase();
+  }, [activeDilemmaIndex]);
+
+  useEffect(() => {
+    trackEvent('landing_viewed', {
+      surface: 'desktop-web',
+      dilemmaId: activeDilemma.id,
+    });
+  }, []);
+
+  const handleSelectChoice = (index: number) => {
+    const choice = activeDilemma.choices[index];
+    setSelectedChoiceIndex(index);
+    trackEvent('landing_dilemma_answered', {
+      surface: 'desktop-web',
+      dilemmaId: activeDilemma.id,
+      choiceIndex: index,
+      choiceLabel: choice.label,
+    });
+  };
+
+  const handleCycleDilemma = () => {
+    const nextIndex = (activeDilemmaIndex + 1) % LANDING_DILEMMAS.length;
+    trackEvent('landing_dilemma_rotated', {
+      surface: 'desktop-web',
+      fromDilemmaId: activeDilemma.id,
+      toDilemmaId: LANDING_DILEMMAS[nextIndex].id,
+    });
+    setActiveDilemmaIndex((currentIndex) => (currentIndex + 1) % LANDING_DILEMMAS.length);
+    setSelectedChoiceIndex(null);
+  };
+
+  const handleStart = () => {
+    if (!selectedChoice) {
+      return;
+    }
+
+    trackEvent('landing_signup_cta_clicked', {
+      surface: 'desktop-web',
+      dilemmaId: activeDilemma.id,
+      choiceIndex: selectedChoiceIndex,
+    });
+    onStart();
+  };
 
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.pageContent}>
@@ -52,7 +320,89 @@ export function WebLandingScreen() {
               <BrandHeart />
             </View>
           </View>
-          <Text style={styles.heroTitle}>L’app de rencontre qui{`\n`}te comprend vraiment.</Text>
+          <Text style={styles.heroTitle}>Avant les profils, il y a{`\n`}tes réactions réelles.</Text>
+
+          <View style={styles.heroLeadWrap}>
+            <Text style={styles.heroLeadEyebrow}>Teste Weto en 12 secondes</Text>
+            <Text style={styles.heroLeadText}>
+              Réponds à un vrai dilemme et regarde le signal apparaître avant même de créer ton compte.
+            </Text>
+          </View>
+
+          <View style={styles.instantCard}>
+            <View style={styles.instantCardTop}>
+              <View style={styles.instantBadge}>
+                <Text style={styles.instantBadgeText}>{activeDilemma.kicker}</Text>
+              </View>
+              <Text style={styles.instantTopNote}>Aucune sauvegarde avant ton compte</Text>
+            </View>
+
+            <Text style={styles.instantQuestion}>{activeDilemma.question}</Text>
+
+            <View style={styles.instantChoicesWrap}>
+              {activeDilemma.choices.map((choice, index) => {
+                const isSelected = selectedChoiceIndex === index;
+                return (
+                  <TouchableOpacity
+                    key={choice.label}
+                    style={[styles.instantChoice, isSelected && styles.instantChoiceSelected]}
+                    activeOpacity={0.84}
+                    onPress={() => handleSelectChoice(index)}
+                  >
+                    <Text style={[styles.instantChoiceText, isSelected && styles.instantChoiceTextSelected]}>{choice.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {selectedChoice ? (
+              <View style={styles.instantSignalPanel}>
+                <View style={styles.instantSignalHeader}>
+                  <Text style={styles.instantSignalEyebrow}>Signal immédiat</Text>
+                  <Text style={styles.instantSignalTitle}>{selectedChoice.signalTitle}</Text>
+                </View>
+                <Text style={styles.instantSignalBody}>{selectedChoice.signalBody}</Text>
+
+                <View style={styles.instantTraitsWrap}>
+                  {selectedChoice.traits.map((trait) => {
+                    const tone = LANDING_SIGNAL_COLORS[trait.tone];
+                    return (
+                      <View key={trait.label} style={styles.instantTraitRow}>
+                        <View style={styles.instantTraitHead}>
+                          <Text style={styles.instantTraitLabel}>{trait.label}</Text>
+                          <Text style={[styles.instantTraitValue, { color: tone.text }]}>{trait.value}%</Text>
+                        </View>
+                        <View style={[styles.instantTraitTrack, { backgroundColor: tone.bg }]}>
+                          <View style={[styles.instantTraitFill, { width: `${trait.value}%`, backgroundColor: tone.fill }]} />
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+
+                <Text style={styles.instantTakeaway}>{selectedChoice.takeaway}</Text>
+              </View>
+            ) : (
+              <View style={styles.instantSignalPlaceholder}>
+                <Text style={styles.instantSignalPlaceholderText}>
+                  Choisis une réaction et Weto te montre le type de signal qu’elle déclenche immédiatement.
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.instantActions}>
+              <AppButton
+                title={selectedChoice ? 'Créer mon compte pour sauvegarder' : 'Réponds pour voir ton signal'}
+                onPress={handleStart}
+                fullWidth
+                disabled={!selectedChoice}
+                style={styles.instantPrimaryAction}
+              />
+              <TouchableOpacity style={styles.instantSecondaryAction} activeOpacity={0.8} onPress={handleCycleDilemma}>
+                <Text style={styles.instantSecondaryActionText}>Voir {nextDilemmaLabel}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
 
           <View style={styles.featureList}>
             <FeatureRow
@@ -170,6 +520,89 @@ export function WebLandingScreen() {
           <Text style={styles.summaryLine}>Weto remplace les profils traditionnels par des dilemmes interactifs qui révèlent ta vraie personnalité.</Text>
           <Text style={styles.summaryLine}>L’app analyse tes réponses en temps réel pour te proposer des matchs compatibles et authentiques.</Text>
           <Text style={styles.summaryLine}>Partage, discute et connecte-toi avec des personnes qui pensent comme toi.</Text>
+          <View style={styles.summaryActionWrap}>
+            <AppButton
+              title={selectedChoice ? 'Créer mon compte pour sauvegarder' : 'Réponds au dilemme d’abord'}
+              onPress={handleStart}
+              size="md"
+              disabled={!selectedChoice}
+            />
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.contentSection}>
+        <Text style={styles.contentEyebrow}>Pourquoi Weto paraît plus réel</Text>
+        <Text style={styles.contentTitle}>Une application de rencontre où les réactions passent avant la vitrine.</Text>
+        <Text style={styles.contentIntro}>
+          Weto s’adresse aux personnes qui en ont assez des bios génériques, des matchs sans matière et des conversations qui commencent dans le vide.
+          Ici, le point de départ est un dilemme relationnel ou social capable de révéler un réflexe réel. C’est ce qui rend l’expérience plus dense, plus lisible et plus humaine.
+        </Text>
+
+        <View style={[styles.pillarGrid, !isTablet && styles.pillarGridStacked]}>
+          {REALITY_PILLARS.map((pillar) => (
+            <RealityPillarCard key={pillar.title} title={pillar.title} body={pillar.body} />
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.contentSection}>
+        <Text style={styles.contentEyebrow}>Comment ça marche</Text>
+        <Text style={styles.contentTitle}>Une boucle simple pour transformer un choix en vraie entrée relationnelle.</Text>
+
+        <View style={[styles.workflowGrid, !isTablet && styles.workflowGridStacked]}>
+          {WORKFLOW_STEPS.map((item) => (
+            <WorkflowStepCard key={item.step} step={item.step} title={item.title} body={item.body} />
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.contentSection}>
+        <Text style={styles.contentEyebrow}>FAQ</Text>
+        <Text style={styles.contentTitle}>Les questions que les utilisateurs, les LLM et les moteurs de recherche doivent comprendre immédiatement.</Text>
+
+        <View style={[styles.faqGrid, !isTablet && styles.faqGridStacked]}>
+          {FAQ_ITEMS.map((item) => (
+            <FaqCard key={item.question} question={item.question} answer={item.answer} />
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.contentSection}>
+        <Text style={styles.contentEyebrow}>CGU & règles</Text>
+        <Text style={styles.contentTitle}>Règles d'usage des contenus sécurisés</Text>
+        <View style={styles.cguCard}>
+          <View style={styles.cguRow}>
+            <Ionicons name="shield-checkmark-outline" size={20} color="#1F6FFF" />
+            <Text style={styles.cguText}>
+              Les contenus marqués sécurisés sont protégés au maximum possible et se détruisent en 30s après ouverture.
+            </Text>
+          </View>
+          <View style={styles.cguRow}>
+            <Ionicons name="eye-outline" size={20} color="#1F6FFF" />
+            <Text style={styles.cguText}>
+              Ghost Analysis est opt-in: messages anonymisés, analyse immédiate, suppression après traitement, limitée à 1 utilisation toutes les 24h.
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={[styles.manifestoCard, !isTablet && styles.manifestoCardStacked]}>
+        <View style={styles.manifestoBody}>
+          <Text style={styles.manifestoEyebrow}>Ce que Weto promet vraiment</Text>
+          <Text style={styles.manifestoTitle}>Moins de façade. Plus de réactions, plus de compatibilité, plus de conversations qui ont une prise.</Text>
+          <Text style={styles.manifestoText}>
+            Si une application de rencontre doit mériter ton attention, elle doit te montrer quelque chose de vrai avant de te demander de remplir un formulaire.
+            C’est précisément ce que Weto commence à faire ici.
+          </Text>
+        </View>
+        <View style={styles.manifestoActionWrap}>
+          <AppButton
+            title={selectedChoice ? 'Sauvegarder mon signal' : 'Réponds au dilemme principal'}
+            onPress={handleStart}
+            size="md"
+            disabled={!selectedChoice}
+          />
         </View>
       </View>
     </ScrollView>
@@ -272,6 +705,42 @@ function CompactPhoneSection({ title, children }: { title: string; children: Rea
     <View style={styles.compactSection}>
       <Text style={styles.sectionHeading}>{title}</Text>
       {children}
+    </View>
+  );
+}
+
+function RealityPillarCard({ title, body }: { title: string; body: string }) {
+  return (
+    <View style={styles.pillarCard}>
+      <Text style={styles.pillarTitle}>{title}</Text>
+      <Text style={styles.pillarBody}>{body}</Text>
+    </View>
+  );
+}
+
+function WorkflowStepCard({
+  step,
+  title,
+  body,
+}: {
+  step: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <View style={styles.workflowCard}>
+      <Text style={styles.workflowStep}>{step}</Text>
+      <Text style={styles.workflowTitle}>{title}</Text>
+      <Text style={styles.workflowBody}>{body}</Text>
+    </View>
+  );
+}
+
+function FaqCard({ question, answer }: { question: string; answer: string }) {
+  return (
+    <View style={styles.faqCard}>
+      <Text style={styles.faqQuestion}>{question}</Text>
+      <Text style={styles.faqAnswer}>{answer}</Text>
     </View>
   );
 }
@@ -550,7 +1019,196 @@ const styles = StyleSheet.create({
     lineHeight: 35,
     fontWeight: '700',
     color: '#181818',
-    marginBottom: 46,
+    marginBottom: 22,
+  },
+  heroLeadWrap: {
+    gap: 8,
+    marginBottom: 24,
+  },
+  heroLeadEyebrow: {
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    fontWeight: '700',
+    color: '#1F6FFF',
+  },
+  heroLeadText: {
+    fontSize: 16,
+    lineHeight: 25,
+    color: '#373737',
+  },
+  instantCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 28,
+    padding: 22,
+    marginBottom: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(17,17,17,0.08)',
+    boxShadow: '0 24px 60px rgba(31,111,255,0.10)',
+    shadowColor: '#1F6FFF',
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 10 },
+  },
+  instantCardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 16,
+  },
+  instantBadge: {
+    backgroundColor: '#EEF4FF',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  instantBadgeText: {
+    fontSize: 11,
+    lineHeight: 13,
+    fontWeight: '700',
+    color: '#1F6FFF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  instantTopNote: {
+    flexShrink: 1,
+    textAlign: 'right',
+    fontSize: 11,
+    lineHeight: 16,
+    color: '#6C6C6C',
+  },
+  instantQuestion: {
+    fontSize: 22,
+    lineHeight: 31,
+    fontWeight: '700',
+    color: '#171717',
+    marginBottom: 18,
+  },
+  instantChoicesWrap: {
+    gap: 10,
+    marginBottom: 18,
+  },
+  instantChoice: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#DDE4EE',
+    backgroundColor: '#FBFCFE',
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+  },
+  instantChoiceSelected: {
+    backgroundColor: '#1F6FFF',
+    borderColor: '#1F6FFF',
+  },
+  instantChoiceText: {
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '600',
+    color: '#222222',
+  },
+  instantChoiceTextSelected: {
+    color: '#FFFFFF',
+  },
+  instantSignalPanel: {
+    borderRadius: 22,
+    padding: 16,
+    backgroundColor: '#F6F9FF',
+    borderWidth: 1,
+    borderColor: '#D8E6FF',
+    gap: 12,
+    marginBottom: 18,
+  },
+  instantSignalHeader: {
+    gap: 4,
+  },
+  instantSignalEyebrow: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '700',
+    color: '#1F6FFF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  instantSignalTitle: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: '700',
+    color: '#161616',
+  },
+  instantSignalBody: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#383838',
+  },
+  instantTraitsWrap: {
+    gap: 10,
+  },
+  instantTraitRow: {
+    gap: 6,
+  },
+  instantTraitHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  instantTraitLabel: {
+    fontSize: 13,
+    lineHeight: 16,
+    fontWeight: '600',
+    color: '#212121',
+  },
+  instantTraitValue: {
+    fontSize: 12,
+    lineHeight: 14,
+    fontWeight: '700',
+  },
+  instantTraitTrack: {
+    height: 8,
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  instantTraitFill: {
+    height: '100%',
+    borderRadius: 999,
+  },
+  instantTakeaway: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#233655',
+    fontWeight: '600',
+  },
+  instantSignalPlaceholder: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E6EBF2',
+    backgroundColor: '#FAFBFD',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 18,
+  },
+  instantSignalPlaceholderText: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: '#545454',
+  },
+  instantActions: {
+    gap: 10,
+  },
+  instantPrimaryAction: {
+    boxShadow: '0 12px 28px rgba(31,111,255,0.20)',
+  },
+  instantSecondaryAction: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+  },
+  instantSecondaryActionText: {
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: '600',
+    color: '#1F6FFF',
   },
   featureList: {
     gap: 38,
@@ -1072,6 +1730,10 @@ const styles = StyleSheet.create({
   summaryBody: {
     flex: 1,
   },
+  summaryActionWrap: {
+    marginTop: 18,
+    alignSelf: 'flex-start',
+  },
   summaryTitle: {
     fontSize: 18,
     lineHeight: 24,
@@ -1083,5 +1745,198 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 28,
     color: '#383838',
+  },
+  contentSection: {
+    maxWidth: 1460,
+    width: '100%',
+    alignSelf: 'center',
+    marginTop: 26,
+  },
+  contentEyebrow: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '700',
+    color: '#1F6FFF',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 10,
+  },
+  contentTitle: {
+    fontSize: 28,
+    lineHeight: 38,
+    fontWeight: '700',
+    color: '#161616',
+    maxWidth: 860,
+    marginBottom: 14,
+  },
+  contentIntro: {
+    fontSize: 17,
+    lineHeight: 29,
+    color: '#333333',
+    maxWidth: 980,
+    marginBottom: 22,
+  },
+  pillarGrid: {
+    flexDirection: 'row',
+    gap: 18,
+  },
+  pillarGridStacked: {
+    flexDirection: 'column',
+  },
+  pillarCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(17,17,17,0.08)',
+    boxShadow: '0 12px 32px rgba(0,0,0,0.05)',
+    shadowColor: '#000000',
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+  },
+  pillarTitle: {
+    fontSize: 19,
+    lineHeight: 27,
+    fontWeight: '700',
+    color: '#161616',
+    marginBottom: 8,
+  },
+  pillarBody: {
+    fontSize: 15,
+    lineHeight: 24,
+    color: '#3D3D3D',
+  },
+  workflowGrid: {
+    flexDirection: 'row',
+    gap: 18,
+  },
+  workflowGridStacked: {
+    flexDirection: 'column',
+  },
+  workflowCard: {
+    flex: 1,
+    backgroundColor: '#FDFBF7',
+    borderRadius: 24,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: '#E8DED1',
+  },
+  workflowStep: {
+    fontSize: 12,
+    lineHeight: 15,
+    fontWeight: '800',
+    color: '#1F6FFF',
+    letterSpacing: 1.2,
+    marginBottom: 12,
+  },
+  workflowTitle: {
+    fontSize: 20,
+    lineHeight: 28,
+    fontWeight: '700',
+    color: '#161616',
+    marginBottom: 8,
+  },
+  workflowBody: {
+    fontSize: 15,
+    lineHeight: 24,
+    color: '#3D3D3D',
+  },
+  faqGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 18,
+  },
+  faqGridStacked: {
+    flexDirection: 'column',
+  },
+  faqCard: {
+    width: '48%',
+    minWidth: 280,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: '#EAEAEA',
+  },
+  faqQuestion: {
+    fontSize: 18,
+    lineHeight: 26,
+    fontWeight: '700',
+    color: '#181818',
+    marginBottom: 8,
+  },
+  faqAnswer: {
+    fontSize: 15,
+    lineHeight: 24,
+    color: '#414141',
+  },
+  cguCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#E3EAF3',
+    paddingHorizontal: 22,
+    paddingVertical: 18,
+  },
+  cguRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  cguText: {
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 24,
+    color: '#2B3A4E',
+  },
+  manifestoCard: {
+    maxWidth: 1460,
+    width: '100%',
+    alignSelf: 'center',
+    marginTop: 26,
+    backgroundColor: '#101522',
+    borderRadius: 28,
+    paddingHorizontal: 26,
+    paddingVertical: 26,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 20,
+  },
+  manifestoCardStacked: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
+  manifestoBody: {
+    flex: 1,
+  },
+  manifestoEyebrow: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '700',
+    color: '#8FB3FF',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 10,
+  },
+  manifestoTitle: {
+    fontSize: 28,
+    lineHeight: 38,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 12,
+    maxWidth: 880,
+  },
+  manifestoText: {
+    fontSize: 16,
+    lineHeight: 27,
+    color: 'rgba(255,255,255,0.82)',
+    maxWidth: 860,
+  },
+  manifestoActionWrap: {
+    minWidth: 280,
+    alignItems: 'stretch',
   },
 });

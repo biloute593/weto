@@ -89,7 +89,7 @@ const CURATED_SCENARIOS: Scenario[] = [
     choices: [
       { label: "J'écoute en entier, il a sûrement besoin de parler.", traitDeltas: { sociability: 6, emotion: 4 } },
       { label: "J'écoute en accéléré x2.", traitDeltas: { humor: 4, stability: 3 } },
-      { label: "Je réponds par un 'résume stp' 😅", traitDeltas: { humor: 6, sociability: -2 } },
+      { label: "Je réponds par un 'résume stp'.", traitDeltas: { humor: 6, sociability: -2 } },
     ],
   },
 
@@ -321,7 +321,7 @@ const CURATED_SCENARIOS: Scenario[] = [
     choices: [
       { label: "Je dis que ça me plaît, l'amitié d'abord.", traitDeltas: { sociability: 5, conflict: -4 } },
       { label: 'Je suis honnête avec douceur.', traitDeltas: { stability: 6, conflict: 3 } },
-      { label: 'Je détourne la question avec une blague.', traitDeltas: { humor: 7, conflict: -2 } },
+      { label: 'Je lui dis de porter plainte.', traitDeltas: { humor: 7, conflict: -2 } },
     ],
   },
   {
@@ -332,7 +332,7 @@ const CURATED_SCENARIOS: Scenario[] = [
     choices: [
       { label: 'Je les congratule, la vie avance.', traitDeltas: { stability: 8, emotion: -4 } },
       { label: 'Je parle ouvertement de ce que je ressens.', traitDeltas: { emotion: 6, conflict: 4 } },
-      { label: 'Je supprime tout le monde de mes réseaux.', traitDeltas: { emotion: 8, sociability: -6 } },
+      { label: 'Je propose une relation à 3.', traitDeltas: { emotion: 8, sociability: -6 } },
     ],
   },
   {
@@ -353,7 +353,7 @@ const CURATED_SCENARIOS: Scenario[] = [
       "Ton/ta partenaire oublie votre anniversaire de couple. Tu ?",
     choices: [
       { label: "Je le/la taquine gentiment pour lui rappeler.", traitDeltas: { humor: 6, sociability: 4 } },
-      { label: "Je suis blessé·e et je le dis.", traitDeltas: { emotion: 7, conflict: 5 } },
+      { label: "Je lui achete un kdo de merde.", traitDeltas: { emotion: 7, conflict: 5 } },
       { label: "Je fais comme si de rien n'était mais je note.", traitDeltas: { conflict: -4, emotion: 5 } },
     ],
   },
@@ -366,6 +366,362 @@ const CURATED_SCENARIOS: Scenario[] = [
       { label: "Je le/la confronte immédiatement.", traitDeltas: { conflict: 8, risk: 5 } },
       { label: "Je prends du recul pour comprendre pourquoi.", traitDeltas: { stability: 6, emotion: 3 } },
       { label: "Je fais la même chose pour qu'il/elle comprenne.", traitDeltas: { humor: 4, conflict: 6 } },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════════
+  // VIRAL — dilemmes haute viralité (partage, choc, débat)
+  // ═══════════════════════════════════════════════════════════════════
+  {
+    id: 'viral_01',
+    category: 'Values',
+    question:
+      "Tu trouves 200€ dans la veste que ta mère t'a donnée. Elle ne sait pas qu'ils étaient là. Tu fais quoi ?",
+    choices: [
+      { label: "Je lui dis immédiatement et je les lui rends.", traitDeltas: { stability: 7, conflict: 2 } },
+      { label: "Je les garde — finders keepers, même en famille.", traitDeltas: { risk: 5, humor: 3 } },
+      { label: "Je l'invite à dîner avec cet argent sans rien dire.", traitDeltas: { humor: 6, sociability: 5 } },
+    ],
+  },
+  {
+    id: 'viral_02',
+    category: 'Social',
+    question:
+      "Tu mets accidentellement un like sur une photo Instagram de ton crush... datant de 2019. Il/elle a vu la notification. Ta stratégie ?",
+    choices: [
+      { label: "Je unlike en 0,3 secondes et je fais le mort.", traitDeltas: { stability: 3, humor: 5 } },
+      { label: "J'envoie un message : 'Ouais, j'ai stalké, et alors ?'", traitDeltas: { risk: 8, sociability: 6 } },
+      { label: "Je supprime mon compte et je déménage.", traitDeltas: { humor: 9, emotion: -4 } },
+    ],
+  },
+  {
+    id: 'viral_03',
+    category: 'Relationship',
+    question:
+      "Ton/ta partenaire te demande sincèrement : 'Si tu avais eu une autre vie, tu m'aurais quand même choisi·e ?' Tu réponds quoi ?",
+    choices: [
+      { label: "Oui, sans hésiter — et je le pense vraiment.", traitDeltas: { emotion: 8, sociability: 4 } },
+      { label: "Je suis honnête : 'Je ne sais pas, la vie est complexe.'", traitDeltas: { stability: 6, conflict: 4 } },
+      { label: "Je détourne avec humour pour éviter la bombe émotionnelle.", traitDeltas: { humor: 7, conflict: -3 } },
+    ],
+  },
+  {
+    id: 'viral_04',
+    category: 'Values',
+    question:
+      "Ta banque te crédite par erreur de 3 000€. Elle ne s'en rend pas compte depuis 1 mois. Légalement, garder cet argent = vol. Tu fais quoi ?",
+    choices: [
+      { label: "Je signale l'erreur, évidemment.", traitDeltas: { stability: 8, conflict: 2 } },
+      { label: "Je garde tout. Le système bancaire me doit bien ça.", traitDeltas: { risk: 7, conflict: 5 } },
+      { label: "Je dépense 300€ puis j'attends que ça se règle.", traitDeltas: { humor: 5, risk: 4 } },
+    ],
+  },
+  {
+    id: 'viral_05',
+    category: 'Social',
+    question:
+      "Tu vois ton manager mentir effrontément à un client en réunion. La direction est présente. La vérité ne ferait pas de dégâts. Tu ?",
+    choices: [
+      { label: "Je rectifie poliment en public.", traitDeltas: { conflict: 7, risk: 6 } },
+      { label: "Je me tais maintenant et je lui en parle après.", traitDeltas: { stability: 5, conflict: -2 } },
+      { label: "Je note tout et j'envoie un email à la direction plus tard.", traitDeltas: { stability: 6, conflict: 4 } },
+    ],
+  },
+  {
+    id: 'viral_06',
+    category: 'Values',
+    question:
+      "Un médecin te dit 'vous devriez faire attention à votre poids' alors que tu venais pour une angine. Ta réaction ?",
+    choices: [
+      { label: "Je lui dis poliment que c'est hors sujet.", traitDeltas: { conflict: 6, stability: 5 } },
+      { label: "Je prends note et je rentre chez moi vexé·e.", traitDeltas: { emotion: 6, conflict: -3 } },
+      { label: "Je lui demande si il/elle a pensé à ses propres bilans de santé.", traitDeltas: { humor: 7, conflict: 6 } },
+    ],
+  },
+  {
+    id: 'viral_07',
+    category: 'Absurd',
+    question:
+      "Superpouvour : tu deviens invisible... mais seulement quand personne ne te regarde déjà. Tu prends le pouvoir quand même ?",
+    choices: [
+      { label: "Oui, le principe suffit — je travaillerai les détails.", traitDeltas: { humor: 8, risk: 5 } },
+      { label: "Non, c'est littéralement inutile.", traitDeltas: { stability: 5, humor: 3 } },
+      { label: "J'accepte et je passe ma vie à chercher des témoins.", traitDeltas: { humor: 9, sociability: -3 } },
+    ],
+  },
+  {
+    id: 'viral_08',
+    category: 'Values',
+    question:
+      "Tu peux effacer complètement ta présence sur internet : tous comptes, toutes photos, toutes traces. Définitivement. Tu le fais ?",
+    choices: [
+      { label: "Oui, immédiatement. La liberté d'abord.", traitDeltas: { stability: 7, sociability: -4 } },
+      { label: "Non, c'est une partie de mon histoire.", traitDeltas: { sociability: 6, stability: 4 } },
+      { label: "Je le fais... mais je crée un nouveau compte deux heures après.", traitDeltas: { humor: 8, risk: 3 } },
+    ],
+  },
+  {
+    id: 'viral_09',
+    category: 'Values',
+    question:
+      "Ton meilleur ami te demande un alibi pour cette nuit. Il ne te dit pas pourquoi. Tu sens que c'est pas anodin. Tu couvres ?",
+    choices: [
+      { label: "Je couvre, sans question — c'est mon ami.", traitDeltas: { sociability: 7, conflict: -3 } },
+      { label: "Je refuse sans une explication honnête.", traitDeltas: { stability: 7, conflict: 5 } },
+      { label: "Je couvre mais je lui fais promettre de tout me dire après.", traitDeltas: { sociability: 5, stability: 4 } },
+    ],
+  },
+  {
+    id: 'viral_10',
+    category: 'Relationship',
+    question:
+      "Tu as accès par hasard au téléphone déverrouillé de ton/ta partenaire. Aucune app ouverte. Vous vous faites confiance. Tu ?",
+    choices: [
+      { label: "Je repose le téléphone sans regarder.", traitDeltas: { stability: 8, emotion: 3 } },
+      { label: "Je jette un coup d'œil rapide — juste pour être sûr·e.", traitDeltas: { emotion: 5, conflict: 4 } },
+      { label: "Je lis tout. La confiance n'exclut pas la transparence.", traitDeltas: { conflict: 7, risk: 5 } },
+    ],
+  },
+  {
+    id: 'viral_11',
+    category: 'Absurd',
+    question:
+      "On te propose : dors parfaitement 8h chaque nuit pour toujours... mais plus jamais aucun rêve. Tu acceptes ?",
+    choices: [
+      { label: "Oui, le sommeil de qualité ça n'a pas de prix.", traitDeltas: { stability: 7, emotion: -3 } },
+      { label: "Non, mes rêves font partie de moi.", traitDeltas: { emotion: 7, stability: -2 } },
+      { label: "Je teste 2 semaines pour voir si les rêves me manquent.", traitDeltas: { risk: 5, humor: 3 } },
+    ],
+  },
+  {
+    id: 'viral_12',
+    category: 'Social',
+    question:
+      "Ton groupe WhatsApp familial. Ton oncle envoie une info clairement fausse (mais inoffensive). Tout le monde répond avec un signe d'approbation. Tu ?",
+    choices: [
+      { label: "Je corrige avec un lien factuel, calmement.", traitDeltas: { conflict: 5, stability: 5 } },
+      { label: "Je valide aussi — la paix sociale avant tout.", traitDeltas: { sociability: 4, conflict: -5 } },
+      { label: "Je fais un vocal de 3 minutes pour débunker avec passion.", traitDeltas: { humor: 5, conflict: 7 } },
+    ],
+  },
+  {
+    id: 'viral_13',
+    category: 'Relationship',
+    question:
+      "Tu tombes sincèrement amoureux·se de quelqu'un. Petit détail : c'est le/la meilleur·e ami·e de ton/ta ex. Tu ?",
+    choices: [
+      { label: "Je l'assume — les sentiments, ça ne se contrôle pas.", traitDeltas: { risk: 8, emotion: 6 } },
+      { label: "Je garde ça pour moi et je laisse passer.", traitDeltas: { stability: 6, emotion: -4 } },
+      { label: "Je préviens mon ex avant toute chose.", traitDeltas: { conflict: 5, stability: 5 } },
+    ],
+  },
+  {
+    id: 'viral_14',
+    category: 'Values',
+    question:
+      "Une app te propose de connaître l'opinion EXACTE de chaque personne qui compte dans ta vie sur toi. Gratuit. Anonymisé. Tu l'installes ?",
+    choices: [
+      { label: "Oui, je préfère savoir la vérité.", traitDeltas: { risk: 7, stability: -3 } },
+      { label: "Non, certaines vérités sont mieux non-dites.", traitDeltas: { stability: 7, conflict: -2 } },
+      { label: "J'installe mais je lis que les avis positifs.", traitDeltas: { humor: 8, emotion: 3 } },
+    ],
+  },
+  {
+    id: 'viral_15',
+    category: 'Absurd',
+    question:
+      "Tu peux parler toutes les langues du monde... mais uniquement en chantant. Conversations normales interdites. Seulement chanté. Tu prends le pouvoir ?",
+    choices: [
+      { label: "Absolument. Je me vois déjà à l'ONU.", traitDeltas: { humor: 9, sociability: 5 } },
+      { label: "Non, ça ruinerait ma vie professionnelle.", traitDeltas: { stability: 6, humor: -2 } },
+      { label: "J'accepte et je choisis soigneusement mon genre musical.", traitDeltas: { humor: 7, risk: 4 } },
+    ],
+  },
+  {
+    id: 'viral_16',
+    category: 'Values',
+    question:
+      "Tes parents t'ont aidé à acheter ton appart (50K€). 5 ans plus tard, ils traversent une grosse crise financière. Ils ne demandent rien. Tu ?",
+    choices: [
+      { label: "Je leur propose spontanément de les rembourser progressivement.", traitDeltas: { sociability: 7, stability: 5 } },
+      { label: "J'attends qu'ils me le demandent si besoin.", traitDeltas: { stability: 4, conflict: -2 } },
+      { label: "Je vends l'appart et on partage.", traitDeltas: { emotion: 8, risk: 5 } },
+    ],
+  },
+  {
+    id: 'viral_17',
+    category: 'Social',
+    question:
+      "Tu découvres que ton collègue préféré a menti sur son CV pour être embauché. Vous êtes dans la même équipe depuis 2 ans. Tu fais quoi ?",
+    choices: [
+      { label: "Je ne dis rien — les résultats sont là et c'est mon ami.", traitDeltas: { sociability: 6, conflict: -4 } },
+      { label: "Je lui en parle en privé d'abord.", traitDeltas: { stability: 6, conflict: 4 } },
+      { label: "Je signale aux RH — les règles sont les règles.", traitDeltas: { stability: 7, conflict: 7 } },
+    ],
+  },
+  {
+    id: 'viral_18',
+    category: 'Absurd',
+    question:
+      "Tout le monde peut lire tes pensées 1 jour par an, mais tu ne sais pas lequel. Comment tu prépares ça ?",
+    choices: [
+      { label: "Je vis chaque jour comme si on lisait mes pensées — ça me rend meilleur·e.", traitDeltas: { stability: 8, emotion: 4 } },
+      { label: "Je note un calendrier mental de jours 'safe'.", traitDeltas: { humor: 6, risk: 3 } },
+      { label: "Je pense à des trucs si bizarres que personne ne comprendra.", traitDeltas: { humor: 9, sociability: -2 } },
+    ],
+  },
+  {
+    id: 'viral_19',
+    category: 'Values',
+    question:
+      "Tu peux sauver 5 inconnus d'un danger certain au prix d'une grande souffrance pour 1 autre inconnu. Personne ne le saurait jamais. Tu agis ?",
+    choices: [
+      { label: "Oui. 5 vies contre 1 souffrance, c'est mathématique.", traitDeltas: { stability: 6, conflict: 5 } },
+      { label: "Non. Je ne peux pas infliger une souffrance directe, peu importe le calcul.", traitDeltas: { emotion: 7, stability: 4 } },
+      { label: "J'essaie de trouver une troisième voie — toujours.", traitDeltas: { risk: 4, emotion: 5 } },
+    ],
+  },
+  {
+    id: 'viral_20',
+    category: 'Relationship',
+    question:
+      "Ton/ta partenaire a un 'journal intime' sur son téléphone. Il/elle ne te l'a jamais montré. Un soir, son téléphone sonne sur l'appli ouverte. Tu ?",
+    choices: [
+      { label: "Je retourne le téléphone face cachée — ce n'est pas pour moi.", traitDeltas: { stability: 8, emotion: 3 } },
+      { label: "Je lis la notification visible, c'est venu à moi.", traitDeltas: { emotion: 5, conflict: 3 } },
+      { label: "Je déverrouille et je lis. Il faut bien qu'il/elle sache.", traitDeltas: { conflict: 7, risk: 5 } },
+    ],
+  },
+  {
+    id: 'viral_21',
+    category: 'Social',
+    question:
+      "Tu es invité a un mariage. Le DJ passe ton morceau honteux prefere et personne ne sait que tu l'adores. Tu ?",
+    choices: [
+      { label: "Je vais au centre et j'assume la choré honteuse.", traitDeltas: { humor: 8, sociability: 6 } },
+      { label: "Je souris discrètement mais je reste assis.", traitDeltas: { stability: 5, sociability: -2 } },
+      { label: "Je filme les autres pour détourner l'attention.", traitDeltas: { humor: 5, risk: 4 } },
+    ],
+  },
+  {
+    id: 'viral_22',
+    category: 'Values',
+    question:
+      "Tu apprends qu'un proche a ete trompe. La personne infidele te supplie de ne rien dire, promettant d'avouer bientot. Tu ?",
+    choices: [
+      { label: "Je donne un delai tres court puis je parle si rien ne bouge.", traitDeltas: { stability: 7, conflict: 5 } },
+      { label: "Je parle tout de suite a mon proche, sans negocier.", traitDeltas: { conflict: 8, stability: 4 } },
+      { label: "Je me retire du drame, ce n'est pas mon couple.", traitDeltas: { emotion: -3, stability: 3 } },
+    ],
+  },
+  {
+    id: 'viral_23',
+    category: 'Absurd',
+    question:
+      "Tu peux connaitre l'heure exacte de ta mort... mais la notification arrive avec le son d'un micro-ondes. Tu actives ?",
+    choices: [
+      { label: "Oui, je prefere savoir et organiser ma vie.", traitDeltas: { stability: 6, risk: 5 } },
+      { label: "Non, je refuse de vivre avec ce bip mental.", traitDeltas: { emotion: 6, stability: 4 } },
+      { label: "Oui, mais je change tous les micro-ondes du monde.", traitDeltas: { humor: 9, risk: 3 } },
+    ],
+  },
+  {
+    id: 'viral_24',
+    category: 'Relationship',
+    question:
+      "Au bout de 3 semaines, quelqu'un te dit deja 'je t'aime'. Tu sens que c'est sincere. Tu reagis comment ?",
+    choices: [
+      { label: "Je dis ce que je ressens vraiment, meme si c'est plus lent.", traitDeltas: { stability: 7, emotion: 5 } },
+      { label: "Je le/la rassure sans prononcer les memes mots.", traitDeltas: { sociability: 5, conflict: -2 } },
+      { label: "Je panique, je fais une blague et je change de sujet.", traitDeltas: { humor: 7, emotion: -3 } },
+    ],
+  },
+  {
+    id: 'viral_25',
+    category: 'Values',
+    question:
+      "Un ami gagne beaucoup d'argent avec un contenu que tu trouves moralement vide mais legal. Il te propose de le rejoindre. Tu ?",
+    choices: [
+      { label: "Je refuse si je ne peux pas me respecter dedans.", traitDeltas: { stability: 8, risk: 2 } },
+      { label: "J'essaie une periode test avant de juger.", traitDeltas: { risk: 6, stability: 3 } },
+      { label: "J'y vais et je prends l'argent tant que ca dure.", traitDeltas: { risk: 8, humor: 3 } },
+    ],
+  },
+  {
+    id: 'viral_26',
+    category: 'Social',
+    question:
+      "En plein restaurant, un enfant a une crise et ses parents sont a bout. La salle soupire. Toi, tu ?",
+    choices: [
+      { label: "Je garde un regard doux, zero jugement.", traitDeltas: { emotion: 6, sociability: 4 } },
+      { label: "Je propose une aide concrete si je peux.", traitDeltas: { sociability: 7, stability: 4 } },
+      { label: "Je commande un dessert pour survivre a la scene.", traitDeltas: { humor: 6, stability: 2 } },
+    ],
+  },
+  {
+    id: 'viral_27',
+    category: 'Absurd',
+    question:
+      "Chaque fois que tu mens, ton nez ne grandit pas: il annonce juste 'attention storytelling' avec la voix de ta mere. Tu survis comment ?",
+    choices: [
+      { label: "Je deviens brutalement honnete avec tout le monde.", traitDeltas: { stability: 6, conflict: 5 } },
+      { label: "Je mens moins, mais seulement quand ca vaut vraiment le coup.", traitDeltas: { risk: 5, stability: 3 } },
+      { label: "Je vis pour entendre cette phrase au mauvais moment.", traitDeltas: { humor: 9, sociability: 4 } },
+    ],
+  },
+  {
+    id: 'viral_28',
+    category: 'Relationship',
+    question:
+      "Quelqu'un avec qui tu parles tous les jours disparait 4 jours sans explication puis revient avec 'desole, j'avais besoin d'espace'. Tu ?",
+    choices: [
+      { label: "J'ecoute et je vois si le lien vaut encore le coup.", traitDeltas: { stability: 7, emotion: 4 } },
+      { label: "Je dis clairement que ca m'a blesse et que j'ai besoin d'un cadre.", traitDeltas: { conflict: 6, stability: 5 } },
+      { label: "Je reponds 4 jours plus tard, pure symetrie.", traitDeltas: { humor: 5, conflict: 6 } },
+    ],
+  },
+  {
+    id: 'viral_29',
+    category: 'Values',
+    question:
+      "Tu peux faire annuler en secret la dette d'un inconnu tres pauvre, mais l'argent sera preleve sans douleur sur 1000 comptes riches. Tu le fais ?",
+    choices: [
+      { label: "Oui, sans hesiter.", traitDeltas: { emotion: 7, risk: 5 } },
+      { label: "Non, voler reste voler, meme pour une bonne raison.", traitDeltas: { stability: 8, conflict: 3 } },
+      { label: "Seulement si le systeme permet ensuite de prevenir les gens.", traitDeltas: { stability: 5, sociability: 3 } },
+    ],
+  },
+  {
+    id: 'viral_30',
+    category: 'Social',
+    question:
+      "Un ami rate encore son train parce qu'il est incapable d'etre a l'heure. Il rigole, toi tu l'attends depuis 45 minutes. Tu ?",
+    choices: [
+      { label: "Je lui dis franchement que ce n'est plus drole.", traitDeltas: { conflict: 7, stability: 5 } },
+      { label: "Je fais une vanne, puis je pose une vraie limite.", traitDeltas: { humor: 6, conflict: 4 } },
+      { label: "Je commande un cafe et je m'adapte, encore.", traitDeltas: { emotion: 4, conflict: -4 } },
+    ],
+  },
+  {
+    id: 'viral_31',
+    category: 'Absurd',
+    question:
+      "Tu peux teleporter uniquement tes chaussettes n'importe ou dans le monde. Tu fais quoi de ce pouvoir ridicule ?",
+    choices: [
+      { label: "Je cree un business absurde mais rentable.", traitDeltas: { humor: 8, risk: 6 } },
+      { label: "Je l'utilise pour semer le chaos chez mes proches.", traitDeltas: { humor: 9, conflict: 4 } },
+      { label: "Je refuse ce don, j'ai ma dignite.", traitDeltas: { stability: 5, humor: -2 } },
+    ],
+  },
+  {
+    id: 'viral_32',
+    category: 'Relationship',
+    question:
+      "Au debut d'une histoire, tu sens une alchimie folle mais aussi un enorme drapeau rouge. Tu privilegies quoi ?",
+    choices: [
+      { label: "Je coupe net: l'alchimie ne compense pas le danger.", traitDeltas: { stability: 8, risk: -2 } },
+      { label: "J'avance doucement, yeux ouverts, sans me mentir.", traitDeltas: { stability: 6, emotion: 4 } },
+      { label: "J'y vais quand meme, au moins j'aurai une histoire.", traitDeltas: { risk: 8, emotion: 6 } },
     ],
   },
 ];
@@ -397,6 +753,42 @@ type MultiCategoryGeneratedPackConfig = {
   target: number;
 };
 
+const GENERATED_QUESTION_SIMILARITY_THRESHOLD = 0.74;
+
+function normalizeGeneratedQuestion(question: string): string {
+  return question
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function getGeneratedQuestionSimilarity(left: string, right: string): number {
+  const leftTokens = new Set(normalizeGeneratedQuestion(left).split(/\s+/).filter(Boolean));
+  const rightTokens = new Set(normalizeGeneratedQuestion(right).split(/\s+/).filter(Boolean));
+
+  if (leftTokens.size === 0 || rightTokens.size === 0) {
+    return 0;
+  }
+
+  let intersection = 0;
+  for (const token of leftTokens) {
+    if (rightTokens.has(token)) {
+      intersection += 1;
+    }
+  }
+
+  const union = new Set([...leftTokens, ...rightTokens]).size;
+  return union === 0 ? 0 : intersection / union;
+}
+
+function isQuestionTooSimilar(question: string, seenQuestions: string[]): boolean {
+  return seenQuestions.some(
+    (seenQuestion) => getGeneratedQuestionSimilarity(seenQuestion, question) >= GENERATED_QUESTION_SIMILARITY_THRESHOLD
+  );
+}
+
 function makeScenario(
   id: string,
   category: ScenarioCategory,
@@ -427,20 +819,23 @@ function buildGeneratedPack({
   target,
 }: GeneratedPackConfig): Scenario[] {
   const scenarios: Scenario[] = [];
-  const seenQuestions = new Set<string>();
+  const seenQuestions: string[] = [];
+  const seenQuestionKeys = new Set<string>();
   let comboIndex = 0;
 
   for (const stem of stems) {
     for (const twist of twists) {
       const ending = endings[comboIndex % endings.length];
       const question = `${stem} ${twist}. ${ending}`;
+      const normalizedQuestion = normalizeGeneratedQuestion(question);
 
-      if (seenQuestions.has(question)) {
+      if (seenQuestionKeys.has(normalizedQuestion) || isQuestionTooSimilar(question, seenQuestions)) {
         comboIndex += 1;
         continue;
       }
 
-      seenQuestions.add(question);
+      seenQuestionKeys.add(normalizedQuestion);
+      seenQuestions.push(question);
       const choiceSet = choiceSets[comboIndex % choiceSets.length];
       scenarios.push(
         makeScenario(
@@ -474,7 +869,8 @@ function buildMultiCategoryGeneratedPack({
   target,
 }: MultiCategoryGeneratedPackConfig): Scenario[] {
   const scenarios: Scenario[] = [];
-  const seenQuestions = new Set<string>();
+  const seenQuestions: string[] = [];
+  const seenQuestionKeys = new Set<string>();
   let comboIndex = 0;
 
   for (const stem of stems) {
@@ -482,13 +878,15 @@ function buildMultiCategoryGeneratedPack({
       const ending = endings[comboIndex % endings.length];
       const category = categories[comboIndex % categories.length];
       const question = `${stem} ${twist}. ${ending}`;
+      const normalizedQuestion = normalizeGeneratedQuestion(question);
 
-      if (seenQuestions.has(question)) {
+      if (seenQuestionKeys.has(normalizedQuestion) || isQuestionTooSimilar(question, seenQuestions)) {
         comboIndex += 1;
         continue;
       }
 
-      seenQuestions.add(question);
+      seenQuestionKeys.add(normalizedQuestion);
+      seenQuestions.push(question);
       const choiceSet = choiceSets[comboIndex % choiceSets.length];
       scenarios.push(
         makeScenario(
@@ -526,6 +924,12 @@ const SOCIAL_STEMS = [
   'Lors d une sortie entre collègues,',
   'À un mariage où tout le monde se jauge un peu,',
   'Dans un groupe qui prépare un voyage ensemble,',
+  'Dans une file d attente où tout le monde soupire déjà,',
+  'Pendant un brunch qui vire doucement au débat moral,',
+  'Sur un serveur Discord où l ambiance change en trente secondes,',
+  'Lors d une répétition ou tout le monde est un peu à cran,',
+  'À une pendaison de crémaillère qui mélange plusieurs cercles sociaux,',
+  'Dans un taxi partagé avec des inconnus très bavards,',
 ];
 
 const SOCIAL_TWISTS = [
@@ -1140,7 +1544,15 @@ export function isAdultBirthYear(birthYear: string): boolean {
 }
 
 export function getAllowedScenarioLevels(birthYear: string): ScenarioLevel[] {
-  return isAdultBirthYear(birthYear) ? SCENARIO_LEVELS : ['standard'];
+  const normalizedBirthYear = birthYear.trim();
+
+  // Legacy accounts can exist without a stored birth year.
+  // Keep those users unblocked instead of silently forcing standard only.
+  if (!normalizedBirthYear) {
+    return SCENARIO_LEVELS;
+  }
+
+  return isAdultBirthYear(normalizedBirthYear) ? SCENARIO_LEVELS : ['standard'];
 }
 
 export function getScenariosForLevel(

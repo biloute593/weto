@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   SafeAreaView,
+  ScrollView,
+  KeyboardAvoidingView,
   StyleSheet,
   Text,
   TextInput,
@@ -9,69 +11,260 @@ import {
   Platform,
 } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
-import { Colors, Radius, Spacing, Typography } from '../theme/colors';
+import { Ionicons } from '@expo/vector-icons';
+import { BrandLogo } from '../components/BrandLogo';
+import { Colors, Radius, Spacing, Typography, getThemeColors } from '../theme/colors';
 import { useWetoStore } from '../store/useWetoStore';
+import { trackEvent } from '../utils/analytics';
 
-const AVATAR_OPTIONS = ['🫶', '😌', '🦊', '🌞', '🧠', '✨', '🎧', '🌊'];
+const AVATAR_OPTIONS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 const CURRENT_YEAR = new Date().getFullYear();
 const GENDER_OPTIONS = ['Homme', 'Femme', 'Autre'];
 const SEEKING_OPTIONS = [
-  { label: 'Relation sérieuse', emoji: '❤️' },
-  { label: 'Amitié', emoji: '🤝' },
-  { label: 'Autres', emoji: '✨' },
+  { label: 'Relation sérieuse', icon: 'heart-outline' as const },
+  { label: 'Amitié', icon: 'people-outline' as const },
+  { label: 'Autres', icon: 'sparkles-outline' as const },
 ];
-type Step = 'pseudo' | 'birth' | 'profile' | 'location';
+
+type Step = 'pseudo' | 'details';
+
+function WelcomeLayout({ children, styles }: { children: React.ReactNode; styles: ReturnType<typeof createStyles> }) {
+  return (
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          {children}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
 
 export function WelcomeScreen() {
-  const { completeOnboarding } = useWetoStore();
+  const { completeOnboarding, login, themeMode } = useWetoStore();
+  const p = getThemeColors(themeMode);
+  const styles = useMemo(() => createStyles(p), [themeMode]);
   const [step, setStep] = useState<Step>('pseudo');
+  const [authMode, setAuthMode] = useState<'register' | 'login'>('register');
   const [name, setName] = useState('');
-  const [avatar, setAvatar] = useState('🫶');
+  const [avatar, setAvatar] = useState(AVATAR_OPTIONS[0]);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [birthYear, setBirthYear] = useState('');
   const [gender, setGender] = useState('');
-  const [seeking, setSeeking] = useState('');  
+  const [seeking, setSeeking] = useState('');
   const [locationGranted, setLocationGranted] = useState(false);
+  const [isRequestingLocation, setIsRequestingLocation] = useState(false);
+  const [locationError, setLocationError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
 
   const trimmedName = name.trim();
+  const trimmedEmail = email.trim().toLowerCase();
+  const passwordValue = password.trim();
   const birthYearNum = parseInt(birthYear, 10);
   const birthYearValid =
     birthYear.length === 4 &&
     birthYearNum >= 1900 &&
     birthYearNum <= CURRENT_YEAR - 13;
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail);
+  const passwordValid = passwordValue.length >= 8;
+  const passwordsMatch = passwordValue === passwordConfirm.trim();
+  const birthYearOptionalValid = birthYear.length === 0 || birthYearValid;
+
+  useEffect(() => {
+    trackEvent('welcome_viewed', {
+      surface: Platform.OS === 'web' ? 'web' : 'native',
+    });
+  }, []);
 
   const requestLocation = () => {
+    setLocationError('');
     if (Platform.OS === 'web') {
       if (typeof navigator !== 'undefined' && navigator.geolocation) {
+        setIsRequestingLocation(true);
         navigator.geolocation.getCurrentPosition(
-          () => setLocationGranted(true),
-          () => setLocationGranted(false)
+          () => {
+            setLocationGranted(true);
+            setIsRequestingLocation(false);
+          },
+          () => {
+            setIsRequestingLocation(false);
+            setLocationError('Localisation refusée. Tu peux continuer sans et l\'activer plus tard.');
+          },
+          { timeout: 10000 }
         );
+      } else {
+        setLocationError('La géolocalisation n\'est pas disponible dans ce navigateur.');
       }
     } else {
       setLocationGranted(true);
     }
   };
 
-  const handleEnter = () => {
-    completeOnboarding(trimmedName, avatar, birthYear, gender, seeking);
+  const handleRegister = async (entryPoint: 'quick' | 'details') => {
+    if (isSubmitting) return;
+    setAuthError('');
+    setIsSubmitting(true);
+    trackEvent('welcome_register_submit', {
+      step,
+      entryPoint,
+      avatarCustomized: avatar !== AVATAR_OPTIONS[0],
+      hasBirthYear: birthYear.length === 4,
+      hasGender: Boolean(gender),
+      hasSeeking: Boolean(seeking),
+      locationGranted,
+    });
+    try {
+      await completeOnboarding(trimmedName, avatar, birthYear, gender, seeking, trimmedEmail, passwordValue);
+      trackEvent('welcome_register_success', {
+        entryPoint,
+        step,
+        hasBirthYear: birthYear.length === 4,
+        hasGender: Boolean(gender),
+        hasSeeking: Boolean(seeking),
+        locationGranted,
+      });
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Impossible de créer ton profil pour l'instant.");
+      setIsSubmitting(false);
+    }
   };
 
-  // ── STEP 1: Pseudo ─────────────────────────────────────────────
-  if (step === 'pseudo') {
+  const handleLogin = async () => {
+    if (isSubmitting) return;
+    setAuthError('');
+    setIsSubmitting(true);
+    trackEvent('welcome_login_submit', {
+      surface: Platform.OS === 'web' ? 'web' : 'native',
+    });
+    try {
+      await login(trimmedEmail, passwordValue);
+      trackEvent('welcome_login_success', {
+        surface: Platform.OS === 'web' ? 'web' : 'native',
+      });
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Connexion impossible.');
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleOpenDetails = () => {
+    trackEvent('welcome_optional_details_opened', {
+      surface: Platform.OS === 'web' ? 'web' : 'native',
+    });
+    setStep('details');
+  };
+
+  const renderAuthModeSwitch = () => (
+    <View style={styles.authModeRow}>
+      <TouchableOpacity
+        style={[styles.authModePill, authMode === 'register' && styles.authModePillActive]}
+        onPress={() => { setAuthMode('register'); setAuthError(''); }}
+        activeOpacity={0.82}
+      >
+        <Text style={[styles.authModeText, authMode === 'register' && styles.authModeTextActive]}>Créer un compte</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.authModePill, authMode === 'login' && styles.authModePillActive]}
+        onPress={() => { setAuthMode('login'); setAuthError(''); }}
+        activeOpacity={0.82}
+      >
+        <Text style={[styles.authModeText, authMode === 'login' && styles.authModeTextActive]}>Se connecter</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  if (authMode === 'login') {
     return (
-      <SafeAreaView style={styles.container}>
+      <WelcomeLayout styles={styles}>
         <Animated.View entering={FadeIn.duration(300)} style={styles.screen}>
           <View style={styles.topSection}>
-            <Text style={styles.logo}>WETO</Text>
+            <BrandLogo variant="hero" align="center" />
+            <Text style={styles.tagline}>Reconnecte ton compte sécurisé.</Text>
+          </View>
+
+          <Animated.View entering={FadeInDown.delay(100).duration(300)} style={styles.card}>
+            {renderAuthModeSwitch()}
+            <Text style={styles.cardTitle}>Connexion</Text>
+            <Text style={styles.cardSub}>Retrouve immédiatement tes matchs, chats et réponses.</Text>
+
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={(v) => { setEmail(v); setAuthError(''); }}
+              placeholder="Email"
+              placeholderTextColor={p.textMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+            />
+
+            <View style={styles.passwordRow}>
+              <TextInput
+                style={[styles.input, styles.passwordInput]}
+                value={password}
+                onChangeText={(v) => { setPassword(v); setAuthError(''); }}
+                placeholder="Mot de passe"
+                placeholderTextColor={p.textMuted}
+                secureTextEntry={!showLoginPassword}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity
+                style={styles.showHideBtn}
+                onPress={() => setShowLoginPassword((p) => !p)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.showHideText}>{showLoginPassword ? 'Masquer' : 'Afficher'}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {authError ? (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorBoxText}>{authError}</Text>
+              </View>
+            ) : null}
+
+            <TouchableOpacity
+              style={[styles.btn, (!emailValid || !passwordValid || isSubmitting) && styles.btnDisabled]}
+              onPress={() => { void handleLogin(); }}
+              activeOpacity={0.85}
+              disabled={!emailValid || !passwordValid || isSubmitting}
+            >
+              <Text style={styles.btnText}>{isSubmitting ? 'Connexion...' : 'Se connecter'}</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </Animated.View>
+      </WelcomeLayout>
+    );
+  }
+
+  if (step === 'pseudo') {
+    return (
+      <WelcomeLayout styles={styles}>
+        <Animated.View entering={FadeIn.duration(300)} style={styles.screen}>
+          <View style={styles.topSection}>
+            <BrandLogo variant="hero" align="center" />
             <Text style={styles.tagline}>Les dilemmes d'abord. Le reveal ensuite.</Text>
           </View>
 
           <Animated.View entering={FadeInDown.delay(100).duration(300)} style={styles.card}>
-            <Text style={styles.stepLabel}>Étape 1 / 4</Text>
-            <Text style={styles.cardTitle}>Ton pseudo</Text>
-            <Text style={styles.cardSub}>
-              Choisis un nom et un avatar. Ton vrai profil se construit via tes réponses.
-            </Text>
+            {renderAuthModeSwitch()}
+            <Text style={styles.stepLabel}>Étape 1 / 2</Text>
+            <Text style={styles.cardTitle}>Sauvegarde ton signal</Text>
+            <Text style={styles.cardSub}>Le minimum utile pour entrer est ici. Le reste peut venir juste après ou plus tard.</Text>
 
             <View style={styles.avatarRow}>
               <View style={styles.avatarPreview}>
@@ -96,62 +289,215 @@ export function WelcomeScreen() {
               value={name}
               onChangeText={setName}
               placeholder="Ton pseudo"
-              placeholderTextColor={Colors.textMuted}
+              placeholderTextColor={p.textMuted}
               maxLength={24}
               autoCapitalize="words"
               autoCorrect={false}
             />
 
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={(v) => { setEmail(v); setAuthError(''); }}
+              placeholder="Email"
+              placeholderTextColor={p.textMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+            />
+
+            <View style={styles.passwordRow}>
+              <TextInput
+                style={[styles.input, styles.passwordInput]}
+                value={password}
+                onChangeText={(v) => { setPassword(v); setAuthError(''); }}
+                placeholder="Mot de passe (8 car. min)"
+                placeholderTextColor={p.textMuted}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity
+                style={styles.showHideBtn}
+                onPress={() => setShowPassword((p) => !p)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.showHideText}>{showPassword ? 'Masquer' : 'Afficher'}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.passwordRow}>
+              <TextInput
+                style={[styles.input, styles.passwordInput, passwordConfirm.length > 0 && !passwordsMatch && styles.inputError]}
+                value={passwordConfirm}
+                onChangeText={setPasswordConfirm}
+                placeholder="Confirmer le mot de passe"
+                placeholderTextColor={p.textMuted}
+                secureTextEntry={!showPasswordConfirm}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity
+                style={styles.showHideBtn}
+                onPress={() => setShowPasswordConfirm((p) => !p)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.showHideText}>{showPasswordConfirm ? 'Masquer' : 'Afficher'}</Text>
+              </TouchableOpacity>
+            </View>
+            {passwordConfirm.length > 0 && !passwordsMatch ? (
+              <Text style={styles.errorText}>Les mots de passe ne correspondent pas.</Text>
+            ) : null}
+
+            {authError ? (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorBoxText}>{authError}</Text>
+              </View>
+            ) : null}
+
             <TouchableOpacity
-              style={[styles.btn, trimmedName.length < 2 && styles.btnDisabled]}
-              onPress={() => trimmedName.length >= 2 && setStep('birth')}
+              style={[styles.btn, (trimmedName.length < 2 || !emailValid || !passwordValid || !passwordsMatch || isSubmitting) && styles.btnDisabled]}
+              onPress={() => { void handleRegister('quick'); }}
               activeOpacity={0.85}
+              disabled={trimmedName.length < 2 || !emailValid || !passwordValid || !passwordsMatch || isSubmitting}
             >
-              <Text style={styles.btnText}>Continuer →</Text>
+              <Text style={styles.btnText}>{isSubmitting ? 'Création...' : 'Entrer dans Weto maintenant →'}</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.inlineSecondaryBtn, (trimmedName.length < 2 || !emailValid || !passwordValid || !passwordsMatch || isSubmitting) && styles.btnDisabled]}
+              onPress={handleOpenDetails}
+              activeOpacity={0.8}
+              disabled={trimmedName.length < 2 || !emailValid || !passwordValid || !passwordsMatch || isSubmitting}
+            >
+              <Text style={styles.inlineSecondaryBtnText}>Ajouter plus de contexte avant d’entrer</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.microcopy}>Tu pourras compléter les détails de base plus tard si tu veux juste entrer vite.</Text>
           </Animated.View>
         </Animated.View>
-      </SafeAreaView>
+      </WelcomeLayout>
     );
   }
 
-  // ── STEP 2: Année de naissance ──────────────────────────────────
-  if (step === 'birth') {
+  if (step === 'details') {
     return (
-      <SafeAreaView style={styles.container}>
+      <WelcomeLayout styles={styles}>
         <Animated.View entering={FadeIn.duration(300)} style={styles.screen}>
           <View style={styles.topSection}>
-            <Text style={styles.logo}>WETO</Text>
-            <Text style={styles.tagline}>{trimmedName}, quelques infos de base.</Text>
+            <BrandLogo variant="hero" align="center" />
+            <Text style={styles.tagline}>Deux détails de plus, puis tu entres.</Text>
           </View>
 
           <Animated.View entering={FadeInDown.delay(80).duration(300)} style={styles.card}>
-            <Text style={styles.stepLabel}>Étape 2 / 4</Text>
-            <Text style={styles.cardTitle}>Ton année de naissance</Text>
-            <Text style={styles.cardSub}>
-              Pour calibrer les compatibilités. Pas affiché publiquement.
-            </Text>
+            <Text style={styles.stepLabel}>Étape 2 / 2</Text>
+            <Text style={styles.cardTitle}>Affiner ton point de départ</Text>
+            <Text style={styles.cardSub}>Ces infos restent optionnelles. Elles aident juste Weto à calibrer plus vite la compatibilité.</Text>
 
-            <TextInput
-              style={[styles.input, styles.inputLarge]}
-              value={birthYear}
-              onChangeText={(v) => setBirthYear(v.replace(/\D/g, '').slice(0, 4))}
-              placeholder="Ex : 1995"
-              placeholderTextColor={Colors.textMuted}
-              keyboardType="numeric"
-              maxLength={4}
-            />
+            <View style={styles.detailsSection}>
+              <Text style={styles.sectionLabel}>Année de naissance</Text>
+              <TextInput
+                style={[styles.input, styles.inputLarge]}
+                value={birthYear}
+                onChangeText={(value) => setBirthYear(value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="Ex : 1995"
+                placeholderTextColor={p.textMuted}
+                keyboardType="numeric"
+                maxLength={4}
+              />
 
-            {birthYear.length === 4 && !birthYearValid && (
-              <Text style={styles.errorText}>Année invalide</Text>
-            )}
+              {birthYear.length === 4 && !birthYearValid ? (
+                <Text style={styles.errorText}>Année invalide</Text>
+              ) : null}
+            </View>
+
+            <View style={styles.detailsSection}>
+              <Text style={styles.sectionLabel}>Je suis</Text>
+              <View style={styles.pillRow}>
+                {GENDER_OPTIONS.map((value) => (
+                  <TouchableOpacity
+                    key={value}
+                    style={[styles.pill, gender === value && styles.pillSelected]}
+                    onPress={() => setGender(value)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={[styles.pillText, gender === value && styles.pillTextSelected]}>{value}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.detailsSection}>
+              <Text style={styles.sectionLabel}>Je cherche</Text>
+              <View style={styles.pillRow}>
+                {SEEKING_OPTIONS.map((value) => (
+                  <TouchableOpacity
+                    key={value.label}
+                    style={[styles.pill, seeking === value.label && styles.pillSelected]}
+                    onPress={() => setSeeking(value.label)}
+                    activeOpacity={0.75}
+                  >
+                    <View style={styles.pillIconRow}>
+                      <Ionicons
+                        name={value.icon}
+                        size={14}
+                        color={seeking === value.label ? p.accent : p.textSecondary}
+                      />
+                      <Text style={[styles.pillText, seeking === value.label && styles.pillTextSelected]}>{value.label}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.detailsSection}>
+              <Text style={styles.sectionLabel}>Localisation</Text>
+              <Text style={styles.cardSub}>Optionnelle elle aussi, utile seulement pour rapprocher les matchs.</Text>
+
+              {!locationGranted ? (
+                <TouchableOpacity
+                  style={[styles.btn, isRequestingLocation && styles.btnDisabled]}
+                  onPress={requestLocation}
+                  activeOpacity={0.85}
+                  disabled={isRequestingLocation}
+                >
+                  <Text style={styles.btnText}>
+                    {isRequestingLocation ? 'Activation...' : 'Activer ma localisation'}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.locationGrantedRow}>
+                  <Text style={styles.locationGrantedText}>✓ Localisation activée</Text>
+                </View>
+              )}
+
+              {locationError ? (
+                <View style={styles.errorBox}>
+                  <Text style={styles.errorBoxText}>{locationError}</Text>
+                </View>
+              ) : null}
+            </View>
+
+            {authError ? (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorBoxText}>{authError}</Text>
+              </View>
+            ) : null}
 
             <TouchableOpacity
-              style={[styles.btn, !birthYearValid && styles.btnDisabled]}
-              onPress={() => birthYearValid && setStep('profile')}
+              style={[styles.btn, (!birthYearOptionalValid || isSubmitting) && styles.btnDisabled]}
+              onPress={() => { void handleRegister('details'); }}
               activeOpacity={0.85}
+              disabled={!birthYearOptionalValid || isSubmitting}
             >
-              <Text style={styles.btnText}>Continuer →</Text>
+              <Text style={styles.btnText}>{isSubmitting ? 'Création...' : 'Entrer dans Weto avec ces détails →'}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.inlineSecondaryBtn, (!birthYearOptionalValid || isSubmitting) && styles.btnDisabled]}
+              onPress={() => { void handleRegister('quick'); }}
+              activeOpacity={0.8}
+              disabled={!birthYearOptionalValid || isSubmitting}
+            >
+              <Text style={styles.inlineSecondaryBtnText}>Passer ces détails</Text>
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => setStep('pseudo')} style={styles.backBtn}>
@@ -159,124 +505,28 @@ export function WelcomeScreen() {
             </TouchableOpacity>
           </Animated.View>
         </Animated.View>
-      </SafeAreaView>
+      </WelcomeLayout>
     );
   }
 
-  // ── STEP 3: Genre + Recherche ─────────────────────────────────
-  if (step === 'profile') {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Animated.View entering={FadeIn.duration(300)} style={styles.screen}>
-          <View style={styles.topSection}>
-            <Text style={styles.logo}>WETO</Text>
-            <Text style={styles.tagline}>On y est presque, {trimmedName}.</Text>
-          </View>
-
-          <Animated.View entering={FadeInDown.delay(80).duration(300)} style={styles.card}>
-            <Text style={styles.stepLabel}>Étape 3 / 4</Text>
-            <Text style={styles.cardTitle}>Ton profil de base</Text>
-            <Text style={styles.cardSub}>Pour mieux calibrer les compatibilités.</Text>
-
-            <Text style={styles.sectionLabel}>Je suis</Text>
-            <View style={styles.pillRow}>
-              {GENDER_OPTIONS.map((g) => (
-                <TouchableOpacity
-                  key={g}
-                  style={[styles.pill, gender === g && styles.pillSelected]}
-                  onPress={() => setGender(g)}
-                  activeOpacity={0.75}
-                >
-                  <Text style={[styles.pillText, gender === g && styles.pillTextSelected]}>{g}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={styles.sectionLabel}>Je cherche</Text>
-            <View style={styles.pillRow}>
-              {SEEKING_OPTIONS.map((s) => (
-                <TouchableOpacity
-                  key={s.label}
-                  style={[styles.pill, seeking === s.label && styles.pillSelected]}
-                  onPress={() => setSeeking(s.label)}
-                  activeOpacity={0.75}
-                >
-                  <Text style={[styles.pillText, seeking === s.label && styles.pillTextSelected]}>{s.emoji} {s.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <TouchableOpacity
-              style={[styles.btn, (!gender || !seeking) && styles.btnDisabled]}
-              onPress={() => gender && seeking && setStep('location')}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.btnText}>Continuer →</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={() => setStep('birth')} style={styles.backBtn}>
-              <Text style={styles.backBtnText}>← Retour</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        </Animated.View>
-      </SafeAreaView>
-    );
-  }
-
-  // ── STEP 4: Localisation ────────────────────────────────────────
-  return (
-    <SafeAreaView style={styles.container}>
-      <Animated.View entering={FadeIn.duration(300)} style={styles.screen}>
-        <View style={styles.topSection}>
-          <Text style={styles.logo}>WETO</Text>
-          <Text style={styles.tagline}>Presque là.</Text>
-        </View>
-
-        <Animated.View entering={FadeInDown.delay(80).duration(300)} style={styles.card}>
-          <Text style={styles.stepLabel}>Étape 4 / 4</Text>
-          <Text style={styles.cardTitle}>Activer la localisation</Text>
-          <Text style={styles.cardSub}>
-            Pour trouver des matchs près de toi. Tu peux refuser et activer plus tard.
-          </Text>
-
-          <View style={styles.locationIcon}>
-            <Text style={styles.locationEmoji}>📍</Text>
-          </View>
-
-          {!locationGranted ? (
-            <TouchableOpacity style={styles.btn} onPress={requestLocation} activeOpacity={0.85}>
-              <Text style={styles.btnText}>Activer la localisation</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.locationGrantedRow}>
-              <Text style={styles.locationGrantedText}>✓ Localisation activée</Text>
-            </View>
-          )}
-
-          <TouchableOpacity style={[styles.btn, styles.btnSecondary]} onPress={handleEnter} activeOpacity={0.85}>
-            <Text style={styles.btnText}>
-              {locationGranted ? 'Entrer dans Weto →' : 'Passer et entrer →'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => setStep('profile')} style={styles.backBtn}>
-            <Text style={styles.backBtnText}>← Retour</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      </Animated.View>
-    </SafeAreaView>
-  );
+  return null;
 }
 
-const styles = StyleSheet.create({
+function createStyles(p: ReturnType<typeof getThemeColors>) {
+  return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: p.background,
+  },
+  flex: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   screen: {
-    flex: 1,
     padding: Spacing.lg,
-    justifyContent: 'center',
     gap: Spacing.lg,
   },
   topSection: {
@@ -286,16 +536,16 @@ const styles = StyleSheet.create({
   logo: {
     fontSize: 28,
     fontWeight: '800',
-    color: Colors.accent,
+    color: p.accent,
     letterSpacing: 3,
   },
   tagline: {
     ...Typography.body,
-    color: Colors.textSecondary,
+    color: p.textSecondary,
     textAlign: 'center',
   },
   card: {
-    backgroundColor: Colors.card,
+    backgroundColor: p.card,
     borderRadius: Radius.lg,
     padding: Spacing.lg,
     gap: Spacing.md,
@@ -305,21 +555,49 @@ const styles = StyleSheet.create({
       android: { elevation: 3 },
     }),
   },
+  authModeRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  authModePill: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: Radius.pill,
+    backgroundColor: p.background,
+    borderWidth: 1,
+    borderColor: p.border,
+    alignItems: 'center',
+  },
+  authModePillActive: {
+    backgroundColor: p.accentLight,
+    borderColor: p.accent,
+  },
+  authModeText: {
+    ...Typography.caption,
+    color: p.textSecondary,
+    fontWeight: '600',
+  },
+  authModeTextActive: {
+    color: p.accent,
+  },
   stepLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: Colors.accent,
+    color: p.accent,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
   cardTitle: {
     ...Typography.title,
-    color: Colors.text,
+    color: p.text,
   },
   cardSub: {
     ...Typography.caption,
-    color: Colors.textSecondary,
+    color: p.textSecondary,
     lineHeight: 20,
+  },
+  detailsSection: {
+    gap: Spacing.sm,
   },
   avatarRow: {
     flexDirection: 'row',
@@ -330,7 +608,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: Colors.accentLight,
+    backgroundColor: p.accentLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -347,28 +625,75 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: Colors.background,
+    backgroundColor: p.background,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
     borderColor: 'transparent',
   },
   avatarOptSelected: {
-    backgroundColor: Colors.accentLight,
-    borderColor: Colors.accent,
+    backgroundColor: p.accentLight,
+    borderColor: p.accent,
   },
   avatarOptText: {
     fontSize: 20,
   },
   input: {
-    backgroundColor: Colors.background,
+    backgroundColor: p.background,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: 14,
-    color: Colors.text,
+    color: p.text,
     ...Typography.body,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: p.border,
+  },
+  inputError: {
+    borderColor: '#e04040',
+  },
+  passwordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  passwordInput: {
+    flex: 1,
+  },
+  showHideBtn: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 14,
+  },
+  showHideText: {
+    ...Typography.caption,
+    color: p.accent,
+    fontWeight: '600',
+  },
+  inlineSecondaryBtn: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  inlineSecondaryBtnText: {
+    ...Typography.captionBold,
+    color: p.accent,
+  },
+  microcopy: {
+    ...Typography.caption,
+    color: p.textMuted,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  errorBox: {
+    backgroundColor: '#fff0f0',
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#ffcccc',
+  },
+  errorBoxText: {
+    ...Typography.caption,
+    color: '#c0392b',
+    textAlign: 'center',
+    fontWeight: '600',
   },
   inputLarge: {
     fontSize: 28,
@@ -378,17 +703,17 @@ const styles = StyleSheet.create({
   },
   errorText: {
     ...Typography.caption,
-    color: '#FF3B30',
+    color: p.accent,
     textAlign: 'center',
   },
   btn: {
-    backgroundColor: Colors.accent,
+    backgroundColor: p.accent,
     borderRadius: Radius.md,
     paddingVertical: 16,
     alignItems: 'center',
   },
   btnSecondary: {
-    backgroundColor: Colors.text,
+    backgroundColor: p.text,
   },
   btnDisabled: {
     opacity: 0.35,
@@ -404,7 +729,7 @@ const styles = StyleSheet.create({
   },
   backBtnText: {
     ...Typography.caption,
-    color: Colors.textMuted,
+    color: p.textMuted,
   },
   locationIcon: {
     alignItems: 'center',
@@ -426,7 +751,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     ...Typography.captionBold,
-    color: Colors.textSecondary,
+    color: p.textSecondary,
     textTransform: 'uppercase' as const,
     letterSpacing: 0.5,
   },
@@ -439,21 +764,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: 10,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.background,
+    backgroundColor: p.background,
     borderWidth: 1.5,
-    borderColor: Colors.border,
+    borderColor: p.border,
   },
   pillSelected: {
-    backgroundColor: Colors.accentLight,
-    borderColor: Colors.accent,
+    backgroundColor: p.accentLight,
+    borderColor: p.accent,
   },
   pillText: {
     ...Typography.caption,
-    color: Colors.text,
+    color: p.text,
     fontWeight: '500',
   },
   pillTextSelected: {
-    color: Colors.accent,
+    color: p.accent,
     fontWeight: '700',
   },
-});
+  pillIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  });
+}

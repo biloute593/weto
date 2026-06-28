@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,25 +9,35 @@ import {
   Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { AppButton } from '../components/AppButton';
-import { Colors, Spacing, Radius, Typography } from '../theme/colors';
+import { Colors, Spacing, Radius, Typography, getThemeColors } from '../theme/colors';
 import { useWetoStore } from '../store/useWetoStore';
+import { StarfieldBackground } from '../components/StarfieldBackground';
+import { getAvatarMonogram } from '../utils';
 
 export function MatchScreen() {
-  const { matches, userAvatar } = useWetoStore();
+  const { matches, userAvatar, userName, themeMode } = useWetoStore();
   const navigation = useNavigation<any>();
+  const p = getThemeColors(themeMode);
+  const styles = useMemo(() => createStyles(p), [themeMode]);
 
-  const latestMatch = matches[matches.length - 1];
-  const previousMatches = matches.slice(0, -1).reverse();
+  // Sort all matches by compatibilityScore descending so users can choose any degree
+  const sortedMatches = [...matches].sort((a, b) => b.compatibilityScore - a.compatibilityScore);
+  const topMatch = sortedMatches[0] ?? null;
+  const otherMatches = sortedMatches.slice(1);
 
-  if (matches.length === 0) {
+  if (!matches.length) {
     return (
       <SafeAreaView style={styles.container}>
+        {themeMode === 'dark' && <StarfieldBackground />}
         <View style={styles.header}>
           <Text style={styles.title}>Match</Text>
         </View>
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyEmoji}>💙</Text>
+          <View style={styles.emptyEmoji}>
+            <Ionicons name="heart-outline" size={34} color="#4E6E92" />
+          </View>
           <Text style={styles.emptyTitle}>Pas encore de match</Text>
           <Text style={styles.emptySubtitle}>
             Continue à répondre aux dilemmes pour que Weto trouve tes compatibilités.
@@ -39,6 +49,7 @@ export function MatchScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {themeMode === 'dark' && <StarfieldBackground />}
       <View style={styles.header}>
         <Text style={styles.title}>Match</Text>
         <View style={styles.badge}>
@@ -49,28 +60,33 @@ export function MatchScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
       >
-        {latestMatch && (
+        {topMatch && (
           <View style={styles.heroCard}>
-            <Text style={styles.heroEyebrow}>Dernier reveal</Text>
-            <Text style={styles.heroTitle}>Compatibilite detectee avec {latestMatch.name}</Text>
+            <View style={styles.heroTopRow}>
+              <Text style={styles.heroEyebrow}>Meilleure compatibilité</Text>
+              <View style={styles.heroScoreBadge}>
+                <Text style={styles.heroScoreText}>{topMatch.compatibilityScore}%</Text>
+              </View>
+            </View>
+            <Text style={styles.heroTitle}>Compatibilité avec {topMatch.name}</Text>
             <Text style={styles.heroSubtitle}>
-              Weto a trouve un terrain commun solide entre vos reactions, votre humour et votre style relationnel.
+              Weto a trouvé un terrain commun solide entre vos réactions, votre humour et votre style relationnel.
             </Text>
 
             <View style={styles.heroAvatars}>
               <View style={styles.heroAvatarCircle}>
-                <Text style={styles.heroAvatarEmoji}>{userAvatar}</Text>
+                <Text style={styles.heroAvatarEmoji}>{getAvatarMonogram(userName, userAvatar)}</Text>
               </View>
               <View style={styles.heroHeartBadge}>
-                <Text style={styles.heroHeartText}>💙</Text>
+                  <Ionicons name="heart-outline" size={16} color="#4E6E92" />
               </View>
               <View style={styles.heroAvatarCircle}>
-                <Text style={styles.heroAvatarEmoji}>{latestMatch.avatar}</Text>
+                <Text style={styles.heroAvatarEmoji}>{getAvatarMonogram(topMatch.name, topMatch.avatar)}</Text>
               </View>
             </View>
 
             <View style={styles.heroReasons}>
-              {latestMatch.compatibilityReasons.map((reason, idx) => (
+              {topMatch.compatibilityReasons.map((reason, idx) => (
                 <View key={idx} style={styles.heroReasonPill}>
                   <Text style={styles.heroReasonText}>{reason}</Text>
                 </View>
@@ -79,17 +95,17 @@ export function MatchScreen() {
 
             <AppButton
               title="Envoyer un message"
-              onPress={() => navigation.navigate('ChatDetail', { contactId: latestMatch.id })}
+              onPress={() => navigation.navigate('ChatDetail', { contactId: topMatch.id })}
               fullWidth
             />
           </View>
         )}
 
-        {previousMatches.length > 0 && (
-          <Text style={styles.sectionLabel}>Autres matchs</Text>
+        {otherMatches.length > 0 && (
+          <Text style={styles.sectionLabel}>Tous tes matchs — du plus au moins compatible</Text>
         )}
 
-        {previousMatches.map((match) => (
+        {otherMatches.map((match) => (
           <TouchableOpacity
             key={match.id}
             style={styles.matchCard}
@@ -99,7 +115,7 @@ export function MatchScreen() {
             {/* Avatar */}
             <View style={styles.avatarContainer}>
               <View style={styles.avatarCircle}>
-                <Text style={styles.avatarEmoji}>{match.avatar}</Text>
+                <Text style={styles.avatarEmoji}>{getAvatarMonogram(match.name, match.avatar)}</Text>
               </View>
               <View style={styles.onlineDot} />
             </View>
@@ -123,7 +139,7 @@ export function MatchScreen() {
 
             {/* CTA */}
             <View style={styles.msgButton}>
-              <Text style={styles.msgButtonText}>💬</Text>
+              <Ionicons name="chatbubble-ellipses-outline" size={17} color="#4E6E92" />
             </View>
           </TouchableOpacity>
         ))}
@@ -132,10 +148,11 @@ export function MatchScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(p: ReturnType<typeof getThemeColors>) {
+  return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: p.background,
   },
   header: {
     flexDirection: 'row',
@@ -146,10 +163,10 @@ const styles = StyleSheet.create({
   },
   title: {
     ...Typography.title,
-    color: Colors.text,
+    color: p.text,
   },
   badge: {
-    backgroundColor: Colors.accent,
+    backgroundColor: p.accent,
     borderRadius: Radius.full,
     minWidth: 24,
     height: 24,
@@ -159,7 +176,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     ...Typography.captionBold,
-    color: Colors.white,
+    color: p.white,
   },
   emptyContainer: {
     flex: 1,
@@ -168,18 +185,23 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
   },
   emptyEmoji: {
-    fontSize: 60,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(124,203,255,0.18)',
     marginBottom: Spacing.md,
   },
   emptyTitle: {
     ...Typography.h1,
-    color: Colors.text,
+    color: p.text,
     textAlign: 'center',
     marginBottom: Spacing.sm,
   },
   emptySubtitle: {
     ...Typography.body,
-    color: Colors.textSecondary,
+    color: p.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
   },
@@ -188,7 +210,7 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   heroCard: {
-    backgroundColor: Colors.card,
+    backgroundColor: p.card,
     borderRadius: Radius.lg,
     padding: Spacing.lg,
     gap: Spacing.md,
@@ -198,19 +220,35 @@ const styles = StyleSheet.create({
       android: { elevation: 4 },
     }),
   },
+  heroTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   heroEyebrow: {
     ...Typography.small,
-    color: Colors.textMuted,
+    color: p.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
+  heroScoreBadge: {
+    backgroundColor: p.accentLight,
+    borderRadius: Radius.full,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  heroScoreText: {
+    ...Typography.bodyBold,
+    color: p.accent,
+    fontSize: 16,
+  },
   heroTitle: {
     ...Typography.h1,
-    color: Colors.text,
+    color: p.text,
   },
   heroSubtitle: {
     ...Typography.body,
-    color: Colors.textSecondary,
+    color: p.textSecondary,
   },
   heroAvatars: {
     flexDirection: 'row',
@@ -222,7 +260,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: Colors.accentLight,
+    backgroundColor: p.accentLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -236,7 +274,7 @@ const styles = StyleSheet.create({
     marginHorizontal: -10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.card,
+    backgroundColor: p.card,
     zIndex: 1,
     ...Platform.select({
       web: { boxShadow: '0 2px 8px rgba(0,0,0,0.08)' },
@@ -251,23 +289,23 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   heroReasonPill: {
-    backgroundColor: Colors.background,
+    backgroundColor: p.background,
     borderRadius: Radius.pill,
     paddingHorizontal: Spacing.md,
     paddingVertical: 8,
   },
   heroReasonText: {
     ...Typography.captionBold,
-    color: Colors.textSecondary,
+    color: p.textSecondary,
   },
   sectionLabel: {
     ...Typography.captionBold,
-    color: Colors.textSecondary,
+    color: p.textSecondary,
     paddingHorizontal: Spacing.xs,
     marginTop: Spacing.xs,
   },
   matchCard: {
-    backgroundColor: Colors.card,
+    backgroundColor: p.card,
     borderRadius: Radius.lg,
     padding: Spacing.md,
     flexDirection: 'row',
@@ -286,7 +324,7 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 29,
-    backgroundColor: Colors.accentLight,
+    backgroundColor: p.accentLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -300,9 +338,9 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: Colors.success,
+    backgroundColor: p.success,
     borderWidth: 2,
-    borderColor: Colors.card,
+    borderColor: p.card,
   },
   matchInfo: {
     flex: 1,
@@ -315,17 +353,17 @@ const styles = StyleSheet.create({
   },
   matchName: {
     ...Typography.h2,
-    color: Colors.text,
+    color: p.text,
   },
   compatScore: {
-    backgroundColor: Colors.accentLight,
+    backgroundColor: p.accentLight,
     borderRadius: Radius.pill,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
   },
   compatText: {
     ...Typography.captionBold,
-    color: Colors.accent,
+    color: p.accent,
   },
   reasonsRow: {
     flexDirection: 'row',
@@ -333,24 +371,25 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   reasonPill: {
-    backgroundColor: Colors.background,
+    backgroundColor: p.background,
     borderRadius: Radius.pill,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
   },
   reasonPillText: {
     ...Typography.small,
-    color: Colors.textSecondary,
+    color: p.textSecondary,
   },
   msgButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.accentLight,
+    backgroundColor: p.accentLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   msgButtonText: {
     fontSize: 18,
   },
-});
+  });
+}

@@ -5,8 +5,8 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": false,
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -29,8 +29,14 @@
       "output": "single",
       "name": "Weto",
       "shortName": "Weto",
-      "description": "L'app de rencontre qui te comprend vraiment."
+      "description": "Weto est l'application de rencontre par dilemmes qui fait apparaître un vrai signal avant l'inscription."
     },
-    "plugins": []
+    "plugins": [],
+    "extra": {
+      "eas": {
+        "projectId": "8e9c36d1-cb88-4a15-b3ed-2e6b441bcad2"
+      }
+    },
+    "owner": "biloute593"
   }
 }

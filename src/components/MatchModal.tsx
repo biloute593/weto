@@ -6,11 +6,25 @@ import {
   Platform,
   Dimensions,
 } from 'react-native';
-import Animated, { FadeIn, FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  FadeInUp,
+  ZoomIn,
+  SlideInLeft,
+  SlideInRight,
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 import { AppButton } from './AppButton';
 import { Colors, Spacing, Radius, Typography } from '../theme/colors';
 import { MatchProfile } from '../types';
 import { useWetoStore } from '../store/useWetoStore';
+import { getAvatarMonogram } from '../utils';
 
 const { width } = Dimensions.get('window');
 
@@ -23,50 +37,83 @@ interface MatchModalProps {
 export function MatchModal({ match, onDismiss, onMessage }: MatchModalProps) {
   const { userAvatar, userName } = useWetoStore();
 
-  const confettiEmojis = ['🎉', '✨', '💙', '🎊', '⭐', '💫'];
+  const pulseScale = useSharedValue(1);
+  React.useEffect(() => {
+    pulseScale.value = withRepeat(
+      withTiming(1.15, { duration: 1300, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
+    );
+  }, []);
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseScale.value }],
+    opacity: 0.28,
+  }));
+
+  const confettiIcons: Array<keyof typeof Ionicons.glyphMap> = [
+    'sparkles-outline',
+    'ellipse-outline',
+    'star-outline',
+    'diamond-outline',
+    'planet-outline',
+    'flash-outline',
+  ];
+
+  const confettiColors = ['#0D6EFD', '#7CCBFF', '#FFD700', '#2C9B66', '#FF9500'];
 
   return (
     <Animated.View entering={FadeIn.duration(220)} style={styles.backdrop}>
       <Animated.View entering={ZoomIn.springify().damping(16)} style={styles.modal}>
         {/* Confetti */}
         <View style={styles.confettiContainer}>
-          {confettiEmojis.map((emoji, idx) => (
+          {confettiIcons.map((icon, idx) => (
             <View
               key={idx}
               style={[
                 styles.confettiSlot,
                 {
-                  left: 40 + idx * 30,
+                  left: 30 + idx * 45,
                   transform: [{ rotate: `${idx % 2 === 0 ? '-' : ''}${8 + idx * 4}deg` }],
                 },
               ]}
             >
-              <Animated.Text entering={FadeInUp.delay(idx * 70).duration(500)} style={styles.confetti}>
-                {emoji}
-              </Animated.Text>
+              <Animated.View entering={FadeInUp.delay(idx * 80).duration(800)} style={styles.confetti}>
+                <Ionicons name={icon} size={16} color={confettiColors[idx % confettiColors.length]} />
+              </Animated.View>
             </View>
           ))}
         </View>
 
         {/* Match header */}
-        <Animated.Text entering={FadeInDown.delay(80).duration(280)} style={styles.matchEmoji}>💙</Animated.Text>
+        <Animated.View entering={FadeInDown.delay(80).duration(280)} style={styles.matchEmoji}>
+          <Ionicons name="heart" size={30} color="#0D6EFD" />
+        </Animated.View>
         <Animated.Text entering={FadeInDown.delay(120).duration(280)} style={styles.matchTitle}>It's a match !</Animated.Text>
         <Animated.Text entering={FadeInDown.delay(160).duration(280)} style={styles.matchSubtitle}>
           Vous avez des réactions très compatibles.
         </Animated.Text>
 
         {/* Avatars */}
-        <Animated.View entering={FadeInDown.delay(220).duration(320)} style={styles.avatarsRow}>
-          <View style={styles.avatarCircle}>
-            <Text style={styles.avatarEmoji}>{userAvatar}</Text>
-          </View>
-          <View style={styles.heartBadge}>
-            <Text style={styles.heartText}>💙</Text>
-          </View>
-          <View style={styles.avatarCircle}>
-            <Text style={styles.avatarEmoji}>{match.avatar}</Text>
-          </View>
-        </Animated.View>
+        <View style={styles.avatarsRow}>
+          {/* Glowing Pulsing Halo */}
+          <Animated.View style={[styles.glowingHalo, pulseStyle]} />
+
+          {/* Left Avatar (Me) - Slide from left */}
+          <Animated.View entering={SlideInLeft.delay(100).duration(500).springify().damping(12)} style={styles.avatarCircle}>
+            <Text style={styles.avatarEmoji}>{getAvatarMonogram(userName, userAvatar)}</Text>
+          </Animated.View>
+
+          {/* Heart Badge in the middle - Pop in */}
+          <Animated.View entering={ZoomIn.delay(500).duration(300)} style={styles.heartBadge}>
+            <Ionicons name="heart" size={16} color="#0D6EFD" />
+          </Animated.View>
+
+          {/* Right Avatar (Match) - Slide from right */}
+          <Animated.View entering={SlideInRight.delay(100).duration(500).springify().damping(12)} style={styles.avatarCircle}>
+            <Text style={styles.avatarEmoji}>{getAvatarMonogram(match.name, match.avatar)}</Text>
+          </Animated.View>
+        </View>
 
         {/* Score */}
         <Animated.View entering={FadeInDown.delay(280).duration(320)} style={styles.scoreRow}>
@@ -86,7 +133,7 @@ export function MatchModal({ match, onDismiss, onMessage }: MatchModalProps) {
 
         {/* CTA buttons */}
         <Animated.View entering={FadeInDown.delay(520).duration(320)} style={styles.buttonWrap}>
-          <AppButton title="Envoyer un message 💬" onPress={onMessage} fullWidth />
+          <AppButton title="Envoyer un message" onPress={onMessage} fullWidth />
         </Animated.View>
         <Animated.View entering={FadeInDown.delay(580).duration(320)} style={styles.buttonWrap}>
           <AppButton title="Continuer à jouer" onPress={onDismiss} variant="secondary" fullWidth />
@@ -129,10 +176,18 @@ const styles = StyleSheet.create({
     top: 20,
   },
   confetti: {
-    fontSize: 20,
+    width: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   matchEmoji: {
-    fontSize: 48,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(124,203,255,0.18)',
     marginBottom: Spacing.sm,
   },
   matchTitle: {
@@ -150,7 +205,19 @@ const styles = StyleSheet.create({
   avatarsRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: Spacing.lg,
+    position: 'relative',
+  },
+  glowingHalo: {
+    position: 'absolute',
+    width: 144,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: 'rgba(13, 110, 253, 0.12)',
+    borderWidth: 2,
+    borderColor: '#0D6EFD',
+    zIndex: 0,
   },
   avatarCircle: {
     width: 72,
@@ -159,6 +226,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accentLight,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 2,
   },
   avatarEmoji: {
     fontSize: 36,
@@ -171,13 +239,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginHorizontal: -8,
-    zIndex: 1,
+    zIndex: 3,
     ...Platform.select({
       web: { boxShadow: '0 2px 8px rgba(0,0,0,0.1)' },
     }),
-  },
-  heartText: {
-    fontSize: 18,
   },
   scoreRow: {
     flexDirection: 'row',

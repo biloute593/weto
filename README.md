@@ -22,8 +22,28 @@ npm run ios        # iOS (macOS requis)
 
 ## Build web
 ```bash
-npx expo export --platform web
+npm run build:web
 ```
+
+## Preflight release
+```bash
+npm run preflight:release
+```
+
+Checklist detaillee disponible dans `RELEASE_PREP_APP_STORE.md`.
+
+Contexte agent (historique + analyse code + dernieres modifs): `AGENT_HANDOVER_CONTEXT.md`.
+
+Ce build exporte l'app web puis génère automatiquement les artefacts d'indexation suivants dans `dist/` :
+- `robots.txt`
+- `sitemap.xml`
+- `llms.txt`
+- `manifest.webmanifest`
+- balises SEO / Open Graph / JSON-LD dans `index.html`
+
+Variables d'environnement supportées pour les moteurs de recherche :
+- `GOOGLE_SITE_VERIFICATION` pour injecter la balise Search Console
+- `BING_SITE_VERIFICATION` pour injecter la balise Bing Webmaster Tools
 
 ## Structure
 ```

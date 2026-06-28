@@ -4,5 +4,9 @@
   status = 200
 
 [build]
-  command = "npx expo export --platform web"
+  command = "npm run build:web"
   publish = "dist"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"

@@ -3,7 +3,12 @@ import { UserVector, TraitKey, TraitDelta, Scenario, ScenarioCategory } from '..
 
 const TRAIT_KEYS: TraitKey[] = ['sociability', 'humor', 'risk', 'emotion', 'conflict', 'stability'];
 const CATEGORY_DIVERSITY_BONUS = 8;
-const CATEGORY_REPEAT_PENALTY = 1.5;
+const CATEGORY_REPEAT_PENALTY = 2.4;
+const FOCUS_TRAIT_SCARCITY_BONUS = 6;
+const SIGNAL_SPREAD_WEIGHT = 1.35;
+const TOP_RECOMMENDATION_POOL = 3;
+const RECENT_SCENARIO_WINDOW = 6;
+const QUESTION_SIMILARITY_PENALTY_WEIGHT = 18;
 
 // ─── Profile Calculation ────────────────────────────────────────────
 
@@ -75,6 +80,38 @@ function getTraitUncertainty(value: number): number {
   return 100 - Math.abs(value - 50) * 2;
 }
 
+function normalizeQuestionText(question: string): string {
+  return question
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function getQuestionTokenSet(question: string): Set<string> {
+  return new Set(normalizeQuestionText(question).split(/\s+/).filter(Boolean));
+}
+
+function getQuestionSimilarity(left: string, right: string): number {
+  const leftTokens = getQuestionTokenSet(left);
+  const rightTokens = getQuestionTokenSet(right);
+
+  if (leftTokens.size === 0 || rightTokens.size === 0) {
+    return 0;
+  }
+
+  let intersection = 0;
+  for (const token of leftTokens) {
+    if (rightTokens.has(token)) {
+      intersection += 1;
+    }
+  }
+
+  const union = new Set([...leftTokens, ...rightTokens]).size;
+  return union === 0 ? 0 : intersection / union;
+}
+
 function getAnsweredCategoryCounts(
   answeredIds: Set<string>,
   allScenarios: Scenario[]
@@ -92,6 +129,30 @@ function getAnsweredCategoryCounts(
       Values: 0,
       Relationship: 0,
     } as Record<ScenarioCategory, number>
+  );
+}
+
+function getAnsweredFocusTraitCounts(
+  answeredIds: Set<string>,
+  allScenarios: Scenario[],
+  userVector: UserVector
+): Record<TraitKey, number> {
+  return allScenarios.reduce(
+    (counts, scenario) => {
+      if (answeredIds.has(scenario.id)) {
+        const focusTrait = getScenarioFocusTrait(scenario, userVector);
+        counts[focusTrait] += 1;
+      }
+      return counts;
+    },
+    {
+      sociability: 0,
+      humor: 0,
+      risk: 0,
+      emotion: 0,
+      conflict: 0,
+      stability: 0,
+    } as Record<TraitKey, number>
   );
 }
 
@@ -119,19 +180,79 @@ function getScenarioFocusTrait(scenario: Scenario, userVector: UserVector): Trai
   return bestTrait;
 }
 
+function getScenarioSignalSpread(scenario: Scenario): number {
+  return TRAIT_KEYS.reduce((sum, key) => {
+    const values = scenario.choices.map((choice) => choice.traitDeltas[key] ?? 0);
+    return sum + (Math.max(...values) - Math.min(...values));
+  }, 0) / TRAIT_KEYS.length;
+}
+
+function getQuestionReadabilityScore(scenario: Scenario, answeredCount: number): number {
+  const questionLength = scenario.question.length;
+  const preferredLength = answeredCount < 8 ? 118 : answeredCount < 18 ? 145 : 178;
+  const deviation = Math.abs(questionLength - preferredLength);
+
+  return Math.max(-4, 4 - deviation / 28);
+}
+
+function getRecentAnsweredScenarios(
+  answeredIds: Set<string>,
+  allScenarios: Scenario[],
+  limit = RECENT_SCENARIO_WINDOW
+): Scenario[] {
+  const recentIds = Array.from(answeredIds).slice(-limit);
+
+  if (recentIds.length === 0) {
+    return [];
+  }
+
+  const scenarioById = new Map(allScenarios.map((scenario) => [scenario.id, scenario]));
+  return recentIds
+    .map((scenarioId) => scenarioById.get(scenarioId))
+    .filter((scenario): scenario is Scenario => Boolean(scenario));
+}
+
+function getQuestionNoveltyPenalty(scenario: Scenario, recentAnsweredScenarios: Scenario[]): number {
+  if (recentAnsweredScenarios.length === 0) {
+    return 0;
+  }
+
+  const similarities = recentAnsweredScenarios
+    .map((recentScenario) => getQuestionSimilarity(scenario.question, recentScenario.question))
+    .sort((first, second) => second - first);
+
+  const strongestSimilarity = similarities[0] ?? 0;
+  const secondSimilarity = similarities[1] ?? 0;
+
+  return strongestSimilarity * QUESTION_SIMILARITY_PENALTY_WEIGHT + secondSimilarity * 6;
+}
+
 function scoreScenario(
   scenario: Scenario,
   userVector: UserVector,
-  answeredCategoryCounts: Record<ScenarioCategory, number>
+  answeredCategoryCounts: Record<ScenarioCategory, number>,
+  answeredFocusTraitCounts: Record<TraitKey, number>,
+  answeredCount: number,
+  recentAnsweredScenarios: Scenario[]
 ): number {
   const traitScore = TRAIT_KEYS.reduce(
     (sum, key) => sum + getScenarioTraitScore(scenario, key, userVector),
     0
   );
+  const focusTrait = getScenarioFocusTrait(scenario, userVector);
   const categoryCount = answeredCategoryCounts[scenario.category] ?? 0;
-  const categoryBonus = Math.max(0, CATEGORY_DIVERSITY_BONUS - categoryCount * CATEGORY_REPEAT_PENALTY);
+  const minCategoryCount = Math.min(...Object.values(answeredCategoryCounts));
+  const categoryGap = categoryCount - minCategoryCount;
+  const categoryBonus = Math.max(0, CATEGORY_DIVERSITY_BONUS - categoryGap * CATEGORY_REPEAT_PENALTY);
+  const focusTraitCount = answeredFocusTraitCounts[focusTrait] ?? 0;
+  const minFocusTraitCount = Math.min(...Object.values(answeredFocusTraitCounts));
+  const focusTraitGap = focusTraitCount - minFocusTraitCount;
+  const focusTraitBonus = Math.max(0, FOCUS_TRAIT_SCARCITY_BONUS - focusTraitGap * 2);
+  const signalSpreadBonus = getScenarioSignalSpread(scenario) * SIGNAL_SPREAD_WEIGHT;
+  const readabilityBonus = getQuestionReadabilityScore(scenario, answeredCount);
+  const noveltyPenalty = getQuestionNoveltyPenalty(scenario, recentAnsweredScenarios);
 
-  return traitScore + categoryBonus;
+  return traitScore + categoryBonus + focusTraitBonus + signalSpreadBonus + readabilityBonus - noveltyPenalty;
 }
 
 export function getRecommendedScenarios(
@@ -141,13 +262,23 @@ export function getRecommendedScenarios(
   skippedIds: Set<string> = new Set()
 ): Scenario[] {
   const answeredCategoryCounts = getAnsweredCategoryCounts(answeredIds, allScenarios);
+  const answeredFocusTraitCounts = getAnsweredFocusTraitCounts(answeredIds, allScenarios, userVector);
+  const answeredCount = answeredIds.size;
+  const recentAnsweredScenarios = getRecentAnsweredScenarios(answeredIds, allScenarios);
 
   const unansweredRanked = allScenarios
     .filter((scenario) => !answeredIds.has(scenario.id))
     .map((scenario, index) => ({
       scenario,
       index,
-      score: scoreScenario(scenario, userVector, answeredCategoryCounts),
+      score: scoreScenario(
+        scenario,
+        userVector,
+        answeredCategoryCounts,
+        answeredFocusTraitCounts,
+        answeredCount,
+        recentAnsweredScenarios
+      ),
     }))
     .sort((a, b) => b.score - a.score || a.index - b.index)
     .map((entry) => entry.scenario);
@@ -166,13 +297,8 @@ export function getNextScenario(
 
   if (recommended.length === 0) return null;
 
-  // ─── FUTURE AI: Replace this block with adaptive selection ───
-  // Example future logic:
-  // const weakestTrait = findWeakestTrait(userVector);
-  // return selectScenarioForTrait(weakestTrait, recommended);
-  // ─────────────────────────────────────────────────────────────
-
-  return recommended[0];
+  const poolSize = answeredIds.size < 6 ? 1 : Math.min(TOP_RECOMMENDATION_POOL, recommended.length);
+  return recommended[answeredIds.size % poolSize] ?? recommended[0];
 }
 
 export function getScenarioSelectionHint(
@@ -258,6 +384,26 @@ export function getDominantTrait(vector: UserVector): { key: TraitKey; label: st
   }
 
   return { key: best, label: TRAIT_LABELS[best], value: vector[best] };
+}
+
+function getNameInitial(name: string): string {
+  const stripped = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+
+  const match = stripped.match(/[A-Za-z0-9]/);
+  return (match?.[0] ?? 'U').toUpperCase();
+}
+
+export function getAvatarMonogram(name: string, avatar?: string): string {
+  const trimmedAvatar = (avatar ?? '').trim();
+
+  if (/^[A-Za-z0-9]$/.test(trimmedAvatar)) {
+    return trimmedAvatar.toUpperCase();
+  }
+
+  return getNameInitial(name);
 }
 
 export { TRAIT_LABELS };
