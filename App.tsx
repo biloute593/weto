@@ -158,7 +158,44 @@ export default function App() {
   const refreshRemoteState = useWetoStore((state) => state.refreshRemoteState);
   const syncVersion = useWetoStore((state) => state.syncVersion);
   const [showWelcomeFromLanding, setShowWelcomeFromLanding] = useState(false);
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const { width: windowWidth, height: nativeWindowHeight } = useWindowDimensions();
+  const [windowHeight, setWindowHeight] = useState(nativeWindowHeight);
+
+  useEffect(() => {
+    setWindowHeight(nativeWindowHeight);
+  }, [nativeWindowHeight]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined' || !window.visualViewport) {
+      return;
+    }
+
+    const onViewportResize = () => {
+      setWindowHeight(window.visualViewport!.height);
+    };
+
+    const preventScroll = () => {
+      if (
+        document.activeElement?.tagName === 'INPUT' ||
+        document.activeElement?.tagName === 'TEXTAREA'
+      ) {
+        window.scrollTo(0, 0);
+      }
+    };
+
+    window.visualViewport.addEventListener('resize', onViewportResize);
+    window.visualViewport.addEventListener('scroll', onViewportResize);
+    window.addEventListener('scroll', preventScroll);
+
+    onViewportResize();
+
+    return () => {
+      window.visualViewport?.removeEventListener('resize', onViewportResize);
+      window.visualViewport?.removeEventListener('scroll', onViewportResize);
+      window.removeEventListener('scroll', preventScroll);
+    };
+  }, []);
+
   const syncVersionRef = useRef(syncVersion);
   const palette = getThemeColors(themeMode);
 

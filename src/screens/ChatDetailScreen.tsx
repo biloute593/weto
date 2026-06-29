@@ -415,20 +415,6 @@ export function ChatDetailScreen() {
 
       if (secureAutoHideTimeoutRef.current) {
         clearTimeout(secureAutoHideTimeoutRef.current);
-
-  useEffect(() => {
-    if (!thread?.messages.length) {
-      return;
-    }
-
-    const frame = requestAnimationFrame(() => {
-      flatListRef.current?.scrollToEnd({ animated: false });
-    });
-
-    return () => {
-      cancelAnimationFrame(frame);
-    };
-  }, [thread?.messages.length]);
         secureAutoHideTimeoutRef.current = null;
       }
 
@@ -457,6 +443,20 @@ export function ChatDetailScreen() {
       mediaStreamRef.current = null;
     };
   }, [contactId, setTypingState]);
+
+  useEffect(() => {
+    if (!thread?.messages.length) {
+      return;
+    }
+
+    const frame = requestAnimationFrame(() => {
+      flatListRef.current?.scrollToEnd({ animated: false });
+    });
+
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, [thread?.messages.length]);
 
   if (!thread) {
     return (

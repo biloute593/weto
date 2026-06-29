@@ -233,22 +233,10 @@ export function ScenarioCard({
 
         {/* Action toolbar at the bottom of the card */}
         <View style={styles.cardActionsRow}>
-          <TouchableOpacity style={styles.cardActionButton} onPress={onSkip} activeOpacity={0.7}>
-            <Ionicons name="arrow-forward" size={16} color={p.textSecondary} />
-            <Text style={styles.cardActionText}>Ignorer</Text>
-          </TouchableOpacity>
-          
           <TouchableOpacity style={styles.cardActionButton} onPress={onShare} activeOpacity={0.7}>
             <Ionicons name="paper-plane-outline" size={16} color={p.textSecondary} />
-            <Text style={styles.cardActionText}>Partager</Text>
+            <Text style={styles.cardActionText}>Partager ce dilemme</Text>
           </TouchableOpacity>
-
-          {onOpenChat && (
-            <TouchableOpacity style={styles.cardActionButton} onPress={onOpenChat} activeOpacity={0.7}>
-              <Ionicons name="chatbubbles-outline" size={16} color={p.textSecondary} />
-              <Text style={styles.cardActionText}>Chat</Text>
-            </TouchableOpacity>
-          )}
         </View>
       </View>
     </View>
@@ -401,7 +389,7 @@ function createStyles(p: ReturnType<typeof getThemeColors>) {
     },
     cardActionsRow: {
       flexDirection: 'row',
-      justifyContent: 'space-around',
+      justifyContent: 'center',
       alignItems: 'center',
       borderTopWidth: 1,
       borderTopColor: p.border,
