@@ -54,12 +54,9 @@ export function ScenarioCard({
   const [selected, setSelected] = useState<number | null>(
     initialAnswer ? initialAnswer.choiceIndex : null
   );
-  const [impactedTraits, setImpactedTraits] = useState<string[]>([]);
-
   // Reset/sync state when the scenario ID changes
   useEffect(() => {
     setSelected(initialAnswer ? initialAnswer.choiceIndex : null);
-    setImpactedTraits([]);
   }, [scenario.id, initialAnswer]);
 
   // Shared values for micro-interactions on button press
@@ -97,18 +94,6 @@ export function ScenarioCard({
 
     animateButtonPress(idx);
     setSelected(idx);
-
-    const choice = scenario.choices[idx];
-    if (choice && choice.traitDeltas) {
-      const traitChanges = Object.entries(choice.traitDeltas)
-        .filter(([_, val]) => val !== 0)
-        .map(([key, val]) => {
-          const label = TRAIT_LABELS[key as keyof typeof TRAIT_LABELS] || key;
-          const sign = (val ?? 0) > 0 ? '+' : '';
-          return `${label} ${sign}${val}%`;
-        });
-      setImpactedTraits(traitChanges);
-    }
 
     submitAnswer(scenario.id, idx).catch(() => undefined);
 
@@ -179,21 +164,6 @@ export function ScenarioCard({
 
       {/* Main content wrapper */}
       <View style={styles.contentWrapper}>
-        {impactedTraits.length > 0 && (
-          <Animated.View
-            entering={FadeInUp.duration(350)}
-            exiting={FadeOut.duration(200)}
-            pointerEvents="none"
-            style={styles.floatingTraitsContainer}
-          >
-            {impactedTraits.map((trait, i) => (
-              <Text key={i} style={styles.floatingTraitText}>
-                🧬 {trait}
-              </Text>
-            ))}
-          </Animated.View>
-        )}
-
         <View style={styles.questionWrap}>
           <Text style={styles.question}>
             {scenario.question}
@@ -359,33 +329,6 @@ function createStyles(p: ReturnType<typeof getThemeColors>) {
     },
     choiceTextDimmed: {
       color: p.textMuted,
-    },
-    floatingTraitsContainer: {
-      position: 'absolute',
-      top: '25%',
-      left: '5%',
-      right: '5%',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: isDark ? 'rgba(6, 13, 30, 0.96)' : 'rgba(255, 255, 255, 0.96)',
-      borderRadius: Radius.md,
-      borderWidth: 1,
-      borderColor: p.accent,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      zIndex: 999,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.12,
-      shadowRadius: 16,
-      elevation: 8,
-    },
-    floatingTraitText: {
-      ...Typography.bodyBold,
-      color: p.accent,
-      fontSize: 14,
-      marginVertical: 3,
-      textAlign: 'center',
     },
     cardActionsRow: {
       flexDirection: 'row',

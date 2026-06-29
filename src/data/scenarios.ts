@@ -724,6 +724,116 @@ const CURATED_SCENARIOS: Scenario[] = [
       { label: "J'y vais quand meme, au moins j'aurai une histoire.", traitDeltas: { risk: 8, emotion: 6 } },
     ],
   },
+  {
+    id: 'viral_33',
+    category: 'Absurd',
+    question:
+      "Un bouton te donne 1 million d'euros. Seul hic : un escargot immortel te traque en permanence et s'il te touche, tu meurs. Tu appuies ?",
+    choices: [
+      { label: "J'appuie direct, j'ai déjà un plan pour l'enfermer dans du béton.", traitDeltas: { risk: 8, humor: 6 } },
+      { label: "Jamais de la vie. La paranoïa constante ne vaut pas l'argent.", traitDeltas: { stability: 8, emotion: -4 } },
+      { label: "J'appuie et j'utilise l'argent pour voyager sans fin.", traitDeltas: { risk: 7, sociability: 5 } },
+    ],
+  },
+  {
+    id: 'viral_34',
+    category: 'Social',
+    question:
+      "Tu te retrouves bloqué·e seul·e dans une forêt. Tu préfères y passer la nuit avec un ours sauvage ou avec un homme inconnu ?",
+    choices: [
+      { label: "L'ours. Au moins, je sais exactement à quoi m'attendre.", traitDeltas: { emotion: 6, conflict: 4 } },
+      { label: "L'homme. L'entraide humaine reste notre meilleure chance.", traitDeltas: { sociability: 7, stability: 5 } },
+      { label: "Je construis une cabane secrète pour les éviter tous les deux.", traitDeltas: { humor: 6, risk: 4 } },
+    ],
+  },
+  {
+    id: 'viral_35',
+    category: 'Relationship',
+    question:
+      "Ton ex te propose de se remettre ensemble, mais la condition est que vous partagiez vos mots de passe de téléphone. Tu acceptes ?",
+    choices: [
+      { label: "Oui, la transparence totale est nécessaire pour reconstruire.", traitDeltas: { stability: 6, emotion: 4 } },
+      { label: "Non. Le jardin secret est indispensable, même en couple.", traitDeltas: { stability: 8, conflict: 5 } },
+      { label: "J'accepte, mais j'efface tout mon historique d'abord.", traitDeltas: { humor: 8, risk: 5 } },
+    ],
+  },
+  {
+    id: 'viral_36',
+    category: 'Absurd',
+    question:
+      "On t'offre d'être un 10/10 absolu en beauté, mais tu as la voix de Donald Duck pour le reste de tes jours. Tu signes ?",
+    choices: [
+      { label: "Oui, j'écrirai des petits mots ou je parlerai en langue des signes.", traitDeltas: { humor: 8, risk: 6 } },
+      { label: "Non, ma voix fait partie intégrante de mon identité.", traitDeltas: { stability: 8, emotion: 3 } },
+      { label: "Oui, et je me lance dans une carrière de comédie sur TikTok.", traitDeltas: { humor: 9, sociability: 6 } },
+    ],
+  },
+  {
+    id: 'viral_37',
+    category: 'Values',
+    question:
+      "Tu reçois 10 000€ par mois, mais tu as une chanson de Jul en boucle H24 dans ta tête sans possibilité de l'éteindre. Tu signes ?",
+    choices: [
+      { label: "Je signe ! Le rap marseillais sera la bande-son de ma richesse.", traitDeltas: { humor: 9, risk: 7 } },
+      { label: "Jamais. Je préfère la paix mentale et le silence à tout l'or du monde.", traitDeltas: { stability: 8, emotion: -3 } },
+      { label: "Je signe, mais je dépense tout en thérapies pour essayer de l'ignorer.", traitDeltas: { humor: 6, risk: 5 } },
+    ],
+  },
+  {
+    id: 'viral_38',
+    category: 'Relationship',
+    question:
+      "Ton/ta meilleur·e pote commence à fréquenter ton ex. Ils te demandent ta bénédiction. Tu réagis comment ?",
+    choices: [
+      { label: "Je la donne sincèrement. Le bonheur de mes proches passe avant mon ego.", traitDeltas: { stability: 8, emotion: 5 } },
+      { label: "Je dis franchement que c'est un énorme red flag amical.", traitDeltas: { conflict: 8, stability: 4 } },
+      { label: "Je dis oui, mais je prévois de me venger subtilement.", traitDeltas: { humor: 5, conflict: 6 } },
+    ],
+  },
+  {
+    id: 'viral_39',
+    category: 'Social',
+    question:
+      "Tu gagnes le pouvoir de te téléporter n'importe où, mais chaque téléportation te coûte 1 mois d'espérance de vie. Tu l'utilises ?",
+    choices: [
+      { label: "Uniquement pour les urgences absolues ou des vacances de rêve.", traitDeltas: { risk: 6, stability: 5 } },
+      { label: "Jamais. Je préfère le train et la marche à pied pour vivre vieux.", traitDeltas: { stability: 8, risk: -3 } },
+      { label: "Je l'utilise tous les matins pour éviter les bouchons du taf.", traitDeltas: { humor: 8, risk: 7 } },
+    ],
+  },
+  {
+    id: 'viral_40',
+    category: 'Relationship',
+    question:
+      "Tu découvrez que ton crush mange des pâtes avec du ketchup et coupe ses spaghettis au couteau. C'est un motif de rupture ?",
+    choices: [
+      { label: "Oui, c'est un crime culinaire impardonnable.", traitDeltas: { conflict: 6, humor: 6 } },
+      { label: "Non, je l'aime avec ses défauts (même les pires).", traitDeltas: { emotion: 8, stability: 5 } },
+      { label: "Non, mais je l'inscris de force à un cours de cuisine italienne.", traitDeltas: { humor: 8, sociability: 5 } },
+    ],
+  },
+  {
+    id: 'viral_41',
+    category: 'Absurd',
+    question:
+      "Tu peux lire dans les pensées des gens, mais ils reçoivent une notification sur leur téléphone chaque fois que tu le fais. Tu l'utilises ?",
+    choices: [
+      { label: "Oui, j'assume totalement ma curiosité.", traitDeltas: { risk: 8, conflict: 6 } },
+      { label: "Non, c'est le meilleur moyen de détruire toutes mes relations.", traitDeltas: { stability: 8, conflict: -4 } },
+      { label: "Uniquement lors d'entretiens d'embauche ou de négociations.", traitDeltas: { humor: 7, risk: 5 } },
+    ],
+  },
+  {
+    id: 'viral_42',
+    category: 'Values',
+    question:
+      "Tu peux arrêter le temps, mais tu vieillis deux fois plus vite pendant que le monde est figé. Quelle est ta stratégie ?",
+    choices: [
+      { label: "Je ne l'utilise jamais, ma vie passe déjà trop vite.", traitDeltas: { stability: 8, risk: -3 } },
+      { label: "Uniquement pour grappiller quelques minutes de sommeil en plus.", traitDeltas: { humor: 8, stability: 4 } },
+      { label: "Je fige le temps pour cambrioler des banques et devenir riche.", traitDeltas: { risk: 9, conflict: 7 } },
+    ],
+  },
 ];
 
 type ChoiceSet = {
